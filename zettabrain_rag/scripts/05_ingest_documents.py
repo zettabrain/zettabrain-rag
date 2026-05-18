@@ -182,7 +182,11 @@ def ingest_file(filepath: str, vectorstore, hash_cache: dict) -> bool:
         print(f"  [SKIP] {Path(filepath).name} (already ingested)")
         return False
 
-    docs = load_file(filepath)
+    try:
+        docs = load_file(filepath)
+    except Exception as e:
+        print(f"  [FAIL] {Path(filepath).name} — load error: {e}")
+        return False
     if not docs:
         print(f"  [SKIP] {Path(filepath).name} (unsupported or empty)")
         return False
@@ -285,8 +289,11 @@ def main():
         print(f"\nFound {len(files)} supported file(s) in {folder}")
 
         for f in sorted(files):
-            if ingest_file(str(f), vectorstore, hash_cache):
-                ingested += 1
+            try:
+                if ingest_file(str(f), vectorstore, hash_cache):
+                    ingested += 1
+            except Exception as e:
+                print(f"  [FAIL] {f.name} — unexpected error: {e}")
 
     save_hash_cache(hash_cache)
     print(f"\nDone. {ingested} new file(s) ingested.")
