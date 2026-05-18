@@ -3,7 +3,6 @@ name: Deploy install.sh to S3
 on:
   push:
     branches: [main]
-    paths: [install.sh, install.ps1, install.cmd]
   workflow_dispatch:
 
 jobs:
