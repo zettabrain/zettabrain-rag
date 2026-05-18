@@ -679,6 +679,10 @@ function renderSources(sources, msgId) {
     return true;
   });
 
+  const label = document.createElement('div');
+  label.style.cssText = 'font-size:11px;color:var(--text3);margin-top:10px;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;';
+  label.textContent = 'Sources';
+
   const chips = document.createElement('div');
   chips.className = 'source-chips';
   unique.forEach(s => {
@@ -690,7 +694,7 @@ function renderSources(sources, msgId) {
   });
 
   const bubble = document.querySelector(`#${id} .msg-bubble`);
-  if (bubble) bubble.after(chips);
+  if (bubble) { bubble.after(label); label.after(chips); }
 }
 
 function finishStreaming(data) {

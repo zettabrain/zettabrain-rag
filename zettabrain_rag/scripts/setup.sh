@@ -954,7 +954,7 @@ elif [ "$_VRAM_GB" -ge 16 ]; then
   _RECOMMENDED_MODEL="qwen2.5:14b"
   _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM detected: high quality model"
 elif [ "$_VRAM_GB" -ge 12 ]; then
-  _RECOMMENDED_MODEL="llama3.1:13b"
+  _RECOMMENDED_MODEL="mistral-nemo:12b"
   _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM detected: strong quality model"
 else
   _RECOMMENDED_MODEL="llama3.1:8b"
@@ -969,7 +969,7 @@ echo "  Available models:"
 echo "    1) llama3.2:3b    — fastest (~2GB)       good for quick Q&A"
 echo "    2) llama3.1:8b    — balanced (~5GB)      recommended for most"
 echo "    3) mistral:7b     — fast (~4GB)           strong reasoning"
-echo "    4) llama3.1:13b   — better (~8GB)         needs 12GB+ VRAM/RAM"
+echo "    4) mistral-nemo:12b — better (~7GB)        needs 12GB+ VRAM/RAM"
 echo "    5) qwen2.5:14b    — excellent (~9GB)      needs 16GB+ VRAM/RAM"
 echo "    6) qwen2.5:32b    — best quality (~20GB)  needs 24GB+ VRAM/RAM"
 echo "    7) Custom — enter your own model name"
@@ -981,7 +981,7 @@ case "$_model_choice" in
   1) LLM_MODEL="llama3.2:3b" ;;
   2) LLM_MODEL="llama3.1:8b" ;;
   3) LLM_MODEL="mistral:7b" ;;
-  4) LLM_MODEL="llama3.1:13b" ;;
+  4) LLM_MODEL="mistral-nemo:12b" ;;
   5) LLM_MODEL="qwen2.5:14b" ;;
   6) LLM_MODEL="qwen2.5:32b" ;;
   7) read -rp "  Enter model name (e.g. llama3.2:1b): " LLM_MODEL ;;

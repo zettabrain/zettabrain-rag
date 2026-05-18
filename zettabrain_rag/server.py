@@ -137,7 +137,7 @@ def _get_gpu_info() -> dict:
     elif vg >= 24:
         info["recommended_model"] = "qwen2.5:32b"
     elif vg >= 16:
-        info["recommended_model"] = "llama3.1:13b"
+        info["recommended_model"] = "mistral-nemo:12b"
     elif vg >= 8:
         info["recommended_model"] = "llama3.1:8b"
     else:
@@ -588,7 +588,7 @@ async def websocket_chat(websocket: WebSocket):
                         resp = requests.post(
                             f"{OLLAMA_URL}/api/generate",
                             json={"model": model, "prompt": prompt_text, "stream": True},
-                            stream=True, timeout=180,
+                            stream=True, timeout=600,
                         )
                         if resp.status_code != 200:
                             asyncio.run_coroutine_threadsafe(

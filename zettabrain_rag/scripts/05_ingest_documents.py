@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -76,10 +77,11 @@ def _default_hash_cache() -> str:
         return os.path.join(local_app, "ZettaBrain", "ingested_files.json")
     return "./ingested_files.json"
 
-DOCS_FOLDER = _get("ZETTABRAIN_DOCS",    _get("RAG_DATA_PATH", _default_docs()))
-CHROMA_PATH = _get("ZETTABRAIN_CHROMA",  _default_chroma())
-EMBED_MODEL = os.environ.get("ZETTABRAIN_EMBED_MODEL", "nomic-embed-text")
-HASH_CACHE  = _default_hash_cache()
+DOCS_FOLDER      = _get("ZETTABRAIN_DOCS",    _get("RAG_DATA_PATH", _default_docs()))
+CHROMA_PATH      = _get("ZETTABRAIN_CHROMA",  _default_chroma())
+EMBED_MODEL      = os.environ.get("ZETTABRAIN_EMBED_MODEL", "nomic-embed-text")
+HASH_CACHE       = _default_hash_cache()
+INGEST_ERROR_LOG = str(Path(CHROMA_PATH).parent / "ingest_errors.log")
 
 SUPPORTED = {".pdf", ".txt", ".docx", ".md"}
 
@@ -102,6 +104,16 @@ def load_hash_cache() -> dict:
 def save_hash_cache(cache: dict):
     with open(HASH_CACHE, "w") as f:
         json.dump(cache, f, indent=2)
+
+
+def log_ingest_error(filepath: str, reason: str):
+    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{ts}] FAIL  {Path(filepath).name}  —  {reason}\n"
+    try:
+        with open(INGEST_ERROR_LOG, "a", encoding="utf-8") as f:
+            f.write(line)
+    except Exception:
+        pass
 
 
 def _load_pdf(filepath: str):
@@ -185,10 +197,15 @@ def ingest_file(filepath: str, vectorstore, hash_cache: dict) -> bool:
     try:
         docs = load_file(filepath)
     except Exception as e:
-        print(f"  [FAIL] {Path(filepath).name} — load error: {e}")
+        reason = str(e)
+        print(f"  [FAIL] {Path(filepath).name} — load error: {reason}")
+        log_ingest_error(filepath, f"load error: {reason}")
         return False
     if not docs:
-        print(f"  [SKIP] {Path(filepath).name} (unsupported or empty)")
+        ext = Path(filepath).suffix.lower()
+        reason = "no text found (likely a scanned/image-only PDF)" if ext == ".pdf" else "unsupported or empty"
+        print(f"  [SKIP] {Path(filepath).name} ({reason})")
+        log_ingest_error(filepath, reason)
         return False
 
     splitter = _adaptive_splitter(filepath, docs)
@@ -217,7 +234,9 @@ def ingest_file(filepath: str, vectorstore, hash_cache: dict) -> bool:
                     time.sleep(2 ** attempt)
 
     if added == 0:
-        print(f"  [FAIL] {Path(filepath).name} — no chunks embedded, skipping hash save")
+        reason = "no chunks embedded after splitting (document may be corrupt or too short)"
+        print(f"  [FAIL] {Path(filepath).name} — {reason}")
+        log_ingest_error(filepath, reason)
         return False
 
     hash_cache[filepath] = file_hash
@@ -293,7 +312,9 @@ def main():
                 if ingest_file(str(f), vectorstore, hash_cache):
                     ingested += 1
             except Exception as e:
-                print(f"  [FAIL] {f.name} — unexpected error: {e}")
+                reason = f"unexpected error: {e}"
+                print(f"  [FAIL] {f.name} — {reason}")
+                log_ingest_error(str(f), reason)
 
     save_hash_cache(hash_cache)
     print(f"\nDone. {ingested} new file(s) ingested.")
