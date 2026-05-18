@@ -130,7 +130,7 @@ Recommended model: llama3.1:8b  (10GB VRAM detected: balanced quality/speed)
     1) llama3.2:3b    — fastest (~2GB)        good for quick Q&A
     2) llama3.1:8b    — balanced (~5GB)       recommended for most   ← default
     3) mistral:7b     — fast (~4GB)           strong reasoning
-    4) llama3.1:13b   — better (~8GB)         needs 12GB+ VRAM/RAM
+    4) mistral-nemo:12b — better (~7GB)        needs 12GB+ VRAM/RAM
     5) qwen2.5:14b    — excellent (~9GB)      needs 16GB+ VRAM/RAM
     6) qwen2.5:32b    — best quality (~20GB)  needs 24GB+ VRAM/RAM
     7) Custom
@@ -146,17 +146,25 @@ Then restart the server: `zettabrain-server`
 
 ### Performance reference
 
-Approximate response time for a 300-token answer ("What is cloud computing?"):
+Timings for a real compliance query against a 10-document financial services corpus:
 
-| Hardware | Model | Tokens/sec | Response time |
-|---|---|---|---|
-| 4-core CPU, 8 GB RAM | llama3.2:3b | 8–15 t/s | 20–40 s |
-| 8-core CPU, 16 GB RAM | llama3.1:8b | 5–12 t/s | 25–60 s |
-| NVIDIA RTX 3060 (8 GB) | llama3.1:8b | 60–90 t/s | 3–5 s |
-| NVIDIA RTX 3080 (10 GB) | llama3.1:8b | 80–120 t/s | 2–4 s |
-| Apple M2 (16 GB) | llama3.1:8b | 30–50 t/s | 6–10 s |
+> **"What is the pre-clearance process for personal securities trades and how long does approval last?"**
 
-The web UI and CLI both show per-query timing: retrieve time, generate time, and delta vs previous query.
+| Hardware | Model | Retrieve | Generate | Total |
+|---|---|---|---|---|
+| 4-core CPU, 8 GB RAM | llama3.2:3b | ~1 s | 90–180 s | ~2–3 min |
+| 8-core CPU, 16 GB RAM | llama3.1:8b | ~1 s | 120–300 s | ~2–5 min |
+| EC2 m5.2xlarge (8 vCPU, 32 GB) ✱ | qwen2.5:14b | **0.9 s** | **378 s** | ~6.5 min |
+| NVIDIA RTX 3060 (8 GB) | llama3.1:8b | ~1 s | 5–10 s | ~6–11 s |
+| NVIDIA RTX 3080 (10 GB) | llama3.1:8b | ~1 s | 3–7 s | ~4–8 s |
+| Apple M2 (16 GB) | llama3.1:8b | ~1 s | 10–20 s | ~11–21 s |
+
+✱ *Measured result — EC2 m5.2xlarge, CPU only, 10-doc financial corpus, 5 chunks retrieved.*
+
+**Retrieve** covers: query embedding + ChromaDB MMR search + BM25 keyword search + FlashRank re-ranking.  
+**Generate** depends on model size and hardware. A GPU reduces generate time by 30–60×.
+
+The web UI shows per-query timing after every response: `⚡ 938ms retrieve · 🤖 378s generate`.
 
 ---
 
@@ -175,6 +183,56 @@ ZettaBrain uses a hybrid retrieval approach for accuracy:
 ## Supported document formats
 
 `.pdf`  `.txt`  `.md`  `.docx`
+
+---
+
+## Sample Test Data
+
+Not ready to use your own documents yet? Download ready-made test datasets to evaluate ZettaBrain against realistic enterprise content.
+
+### Available datasets
+
+| Industry | Documents | Organisation (fictional) |
+|---|---|---|
+| **Financial Services** | 10 DOCX files | Apex Financial Group — trading policy, AML/KYC procedures, insider trading, risk framework, employee handbook |
+| **Healthcare** | 10 DOCX files | Riverside Medical Center — HIPAA privacy & security, medication protocols, emergency response codes, clinical documentation |
+
+### Download
+
+| File | Size | Link |
+|---|---|---|
+| Financial Services documents | ~90 KB | [zettabrain-financial-test-docs.zip](https://zettabrain.io/sample-data/zettabrain-financial-test-docs.zip) |
+| Healthcare documents | ~91 KB | [zettabrain-healthcare-test-docs.zip](https://zettabrain.io/sample-data/zettabrain-healthcare-test-docs.zip) |
+| Test prompts guide (40 prompts) | ~7 KB | [RAG_Test_Prompts_Guide.md](https://zettabrain.io/sample-data/RAG_Test_Prompts_Guide.md) |
+
+The prompts guide includes 20 industry-specific prompts per dataset, cross-document summary prompts, and adversarial prompts that verify ZettaBrain correctly declines to answer questions not present in the documents.
+
+### Quick start with sample data
+
+```bash
+# Download and unzip the financial services dataset
+curl -LO https://zettabrain.io/sample-data/zettabrain-financial-test-docs.zip
+unzip zettabrain-financial-test-docs.zip -d ~/zettabrain-test
+
+# Point ZettaBrain at the folder and ingest
+zettabrain-ingest --folder ~/zettabrain-test/financial
+
+# Start chatting
+zettabrain-chat
+```
+
+Open the web GUI at `https://local.zettabrain.app:7860` and paste prompts from the guide directly into the chat.
+
+### Example result (financial services, EC2 m5.2xlarge, CPU only)
+
+**Prompt:** *What is the pre-clearance process for personal securities trades and how long does approval last?*
+
+**Answer (qwen2.5:14b):**
+> The pre-clearance process involves submitting a request through the ComplianceTrack portal at least 24 hours before the intended trade. Approval is valid for 48 hours from the time of approval.
+> [01_Employee_Investment_Trading_Policy.docx]
+
+**Sources cited:** `01_Employee_Investment_Trading_Policy.docx` · `08_Insider_Trading_Policy.docx` · `10_New_Employee_Onboarding.docx`  
+**Timing:** ⚡ 938 ms retrieve · 🤖 378 s generate (CPU only — GPU reduces generate to ~5–10 s)
 
 ---
 
