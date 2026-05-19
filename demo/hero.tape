@@ -14,8 +14,12 @@ Set Framerate  24
 Set PlaybackSpeed 1
 Set TypingSpeed   35ms
 
-# Boot into demo shell with functions pre-loaded
-Set ScriptCommand "bash --init-file demo/init.sh"
+# Boot — load demo functions invisibly then clear the screen
+Hide
+Type "source demo/init.sh"
+Enter
+Sleep 500ms
+Show
 
 # ── Header: show the one-line install command ─────────────────────────────────
 Sleep 400ms
