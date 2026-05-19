@@ -110,13 +110,26 @@ While inside `zettabrain-chat`:
 
 | | Minimum | Recommended |
 |---|---|---|
-| **RAM** | 8 GB | 16 GB |
+| **RAM** | 4 GB | 8 GB (CPU) · 16 GB+ (GPU) |
 | **CPU** | 4 cores / 2.5 GHz | 8 cores / 3.0 GHz |
-| **Disk** | 20 GB free | 50 GB free |
-| **OS** | Ubuntu 22.04 / Debian 12 | Ubuntu 22.04 LTS |
+| **Disk** | 10 GB free | 40 GB free |
+| **OS** | See below | See below |
 | **Python** | 3.9 | 3.11+ |
 
-> **Why 8 GB minimum:** `llama3.1:8b` (Q4) needs ~5 GB in RAM, plus ~2 GB for OS + Python + ChromaDB. Below 8 GB you will hit swap and responses can take 5+ minutes.
+**Supported operating systems**
+
+| Platform | Versions |
+|---|---|
+| **Ubuntu** | 20.04, 22.04, 24.04 |
+| **Debian** | 11, 12 |
+| **Amazon Linux** | 2, 2023 |
+| **RHEL / CentOS Stream / Rocky / AlmaLinux** | 8, 9 |
+| **Fedora** | 38+ |
+| **Linux Mint / Pop!\_OS** | Current releases |
+| **macOS** | 12 Monterey+ (via `pipx install`) |
+| **Windows** | 10 / 11 via WSL2, or `pipx install` for Python components |
+
+> **RAM depends on model:** `qwen3:0.6b` runs on 2 GB; `phi4:3.8b` (CPU default) needs ~6 GB; GPU models from `mistral:7b` upward need 8–24 GB VRAM. See the performance table above for per-model requirements.
 
 ---
 
