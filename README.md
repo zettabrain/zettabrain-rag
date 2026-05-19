@@ -120,23 +120,41 @@ While inside `zettabrain-chat`:
 
 Ollama **auto-detects your GPU** on install — NVIDIA (CUDA), AMD (ROCm), and Apple Silicon (Metal). No configuration needed beyond having the correct drivers installed.
 
-`sudo zettabrain-setup` detects your hardware and presents a model menu:
+`sudo zettabrain-setup` detects your hardware and shows the right menu for your machine.
+
+**CPU-only (no GPU detected):**
+
+```
+Hardware detected: CPU only
+Recommended model: phi4:3.8b  (CPU-only: best quality/speed balance for CPU inference)
+
+  CPU-optimised models (no GPU required):
+    1) phi4:3.8b       — recommended (~2.5GB)  best CPU quality/speed  ← default
+    2) qwen3:0.6b      — ultrafast  (~0.5GB)   lowest RAM, instant replies
+    3) gemma3:1b       — tiny       (~0.8GB)   good for quick Q&A
+    4) tinyllama:1.1b  — very fast  (~0.7GB)   lightweight
+    5) llama3.2:3b     — capable    (~2GB)     general purpose
+    6) Custom
+```
+
+**GPU detected:**
 
 ```
 Hardware detected: NVIDIA GeForce RTX 3080 (10GB VRAM)
-Recommended model: llama3.1:8b  (10GB VRAM detected: balanced quality/speed)
+Recommended model: llama3.1:8b  (10GB VRAM: balanced quality/speed)
 
   Available models:
-    1) llama3.2:3b    — fastest (~2GB)        good for quick Q&A
-    2) llama3.1:8b    — balanced (~5GB)       recommended for most   ← default
-    3) mistral:7b     — fast (~4GB)           strong reasoning
-    4) mistral-nemo:12b — better (~7GB)        needs 12GB+ VRAM/RAM
-    5) qwen2.5:14b    — excellent (~9GB)      needs 16GB+ VRAM/RAM
-    6) qwen2.5:32b    — best quality (~20GB)  needs 24GB+ VRAM/RAM
-    7) Custom
+    1) phi4:3.8b         — efficient   (~2.5GB)  strong reasoning, low VRAM
+    2) openhermes:7b     — fast        (~4GB)    instruction-tuned, sharp
+    3) mistral:7b        — fast        (~4GB)    strong reasoning
+    4) llama3.1:8b       — balanced    (~5GB)    recommended for most
+    5) mistral-nemo:12b  — better      (~7GB)    needs 12GB+ VRAM
+    6) qwen2.5:14b       — excellent   (~9GB)    needs 16GB+ VRAM
+    7) qwen2.5:32b       — best quality (~20GB)  needs 24GB+ VRAM
+    8) Custom
 ```
 
-You can also switch model at any time by editing `/opt/zettabrain/src/zettabrain.env`:
+You can switch model at any time by editing `/opt/zettabrain/src/zettabrain.env`:
 
 ```bash
 ZETTABRAIN_LLM_MODEL=qwen2.5:14b
@@ -150,21 +168,21 @@ Timings for a real compliance query against a 10-document financial services cor
 
 > **"What is the pre-clearance process for personal securities trades and how long does approval last?"**
 
-| Hardware | Model | Retrieve | Generate | Total |
+| Model | Min RAM | Retrieve | Generate | Total |
 |---|---|---|---|---|
-| 4-core CPU, 8 GB RAM | llama3.2:3b | ~1 s | 90–180 s | ~2–3 min |
-| 8-core CPU, 16 GB RAM | llama3.1:8b | ~1 s | 120–300 s | ~2–5 min |
-| EC2 m5.2xlarge (8 vCPU, 32 GB) ✱ | qwen2.5:14b | **0.9 s** | **378 s** | ~6.5 min |
-| NVIDIA RTX 3060 (8 GB) | llama3.1:8b | ~1 s | 5–10 s | ~6–11 s |
-| NVIDIA RTX 3080 (10 GB) | llama3.1:8b | ~1 s | 3–7 s | ~4–8 s |
-| Apple M2 (16 GB) | llama3.1:8b | ~1 s | 10–20 s | ~11–21 s |
-
-✱ *Measured result — EC2 m5.2xlarge, CPU only, 10-doc financial corpus, 5 chunks retrieved.*
+| qwen3:0.6b | 2 GB | ~1 s | 15–40 s | ~1 min |
+| phi4:3.8b | 6 GB | ~1 s | 120–300 s | ~2–5 min |
+| llama3.2:3b | 6 GB | ~1 s | 90–180 s | ~2–3 min |
+| llama3.1:8b (CPU) | 16 GB | ~1 s | 200–400 s | ~4–7 min |
+| mistral:7b (GPU 5–8 GB VRAM) | 8 GB | ~1 s | 5–12 s | ~6–13 s |
+| llama3.1:8b (GPU 8–10 GB VRAM) | 10 GB | ~1 s | 3–7 s | ~4–8 s |
+| qwen2.5:14b (GPU 16 GB VRAM) | 20 GB | ~1 s | 4–10 s | ~5–11 s |
+| Apple M2 / M3 (16 GB unified) | 16 GB | ~1 s | 10–20 s | ~11–21 s |
 
 **Retrieve** covers: query embedding + ChromaDB MMR search + BM25 keyword search + FlashRank re-ranking.  
-**Generate** depends on model size and hardware. A GPU reduces generate time by 30–60×.
+**Generate** depends on model size and hardware. A GPU reduces CPU generate time by 30–60×.
 
-The web UI shows per-query timing after every response: `⚡ 938ms retrieve · 🤖 378s generate`.
+The web UI shows per-query timing after every response: `⚡ 938ms retrieve · 🤖 6.3s generate`.
 
 ---
 
