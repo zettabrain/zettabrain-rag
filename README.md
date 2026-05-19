@@ -3,7 +3,7 @@
 **Private AI document assistant — your documents, your hardware, zero cloud.**
 
 <p align="center">
-  <img src="https://zettabrain.io/hero.gif" alt="ZettaBrain demo — install, setup, ingest, chat" width="800">
+  <img src="demo/hero.gif" alt="ZettaBrain demo — install, setup, ingest, chat" width="800">
 </p>
 
 Chat with your documents using a fully local AI. No API keys. No data leaving your machine. Runs on your own server or laptop with a secure HTTPS web GUI. Supports local disk, NFS, SMB and object storage.
@@ -245,16 +245,23 @@ zettabrain-chat
 
 Open the web GUI at `https://local.zettabrain.app:7860` and paste prompts from the guide directly into the chat.
 
-### Example result (financial services, EC2 m5.2xlarge, CPU only)
+### Sample prompts from the guide
 
-**Prompt:** *What is the pre-clearance process for personal securities trades and how long does approval last?*
+**Financial Services — Apex Financial Group**
 
-**Answer (qwen2.5:14b):**
-> The pre-clearance process involves submitting a request through the ComplianceTrack portal at least 24 hours before the intended trade. Approval is valid for 48 hours from the time of approval.
-> [01_Employee_Investment_Trading_Policy.docx]
+- *"What is the pre-clearance process for personal securities trades and how long does approval last?"*
+- *"When do I need to file a Suspicious Activity Report and what is the deadline for filing?"*
+- *"What is the maximum hotel rate I can expense in New York City?"*
+- *"What happens when a risk event has a financial impact of over $10 million — who needs to be notified and how quickly?"*
 
-**Sources cited:** `01_Employee_Investment_Trading_Policy.docx` · `08_Insider_Trading_Policy.docx` · `10_New_Employee_Onboarding.docx`  
-**Timing:** ⚡ 938 ms retrieve · 🤖 378 s generate (CPU only — GPU reduces generate to ~5–10 s)
+**Healthcare — Riverside Medical Center**
+
+- *"What should I do if I suspect a PHI breach — who do I contact and what is the notification timeline?"*
+- *"Which medications require an independent double-check by a second nurse before administration?"*
+- *"A patient received the wrong medication — what are the steps I need to take to report it?"*
+- *"What are the emergency response codes and what action should staff take for each?"*
+
+The full guide includes 20 prompts per dataset plus cross-document and adversarial prompts.
 
 ---
 
