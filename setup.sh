@@ -945,48 +945,86 @@ if [ "$_GPU_TYPE" = "none" ] && [ "$(uname -m 2>/dev/null)" = "arm64" ]; then
 fi
 
 if [ "$_GPU_TYPE" = "none" ] || [ "$_VRAM_GB" -lt 4 ]; then
-  _RECOMMENDED_MODEL="llama3.2:3b"
-  _RECOMMENDED_REASON="CPU-only or low VRAM: fastest inference"
-elif [ "$_VRAM_GB" -ge 24 ]; then
-  _RECOMMENDED_MODEL="qwen2.5:32b"
-  _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM detected: best quality model"
-elif [ "$_VRAM_GB" -ge 16 ]; then
-  _RECOMMENDED_MODEL="qwen2.5:14b"
-  _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM detected: high quality model"
-elif [ "$_VRAM_GB" -ge 12 ]; then
-  _RECOMMENDED_MODEL="mistral-nemo:12b"
-  _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM detected: strong quality model"
+  # ── CPU-only path ──────────────────────────────────────────────────────────
+  _RECOMMENDED_MODEL="phi4:3.8b"
+  _RECOMMENDED_REASON="CPU-only: best quality/speed balance for CPU inference"
+
+  echo ""
+  info "Hardware detected: ${_GPU_NAME}"
+  info "Recommended model: ${_RECOMMENDED_MODEL}  (${_RECOMMENDED_REASON})"
+  echo ""
+  echo "  CPU-optimised models (no GPU required):"
+  echo "    1) phi4:3.8b       — recommended (~2.5GB)  best CPU quality/speed  ← default"
+  echo "    2) qwen3:0.6b      — ultrafast  (~0.5GB)   lowest RAM, instant replies"
+  echo "    3) gemma3:1b       — tiny       (~0.8GB)   good for quick Q&A"
+  echo "    4) tinyllama:1.1b  — very fast  (~0.7GB)   lightweight"
+  echo "    5) llama3.2:3b     — capable    (~2GB)     general purpose"
+  echo "    6) Custom — enter your own model name"
+  echo ""
+  echo "  GPU: ${_GPU_NAME}  |  Press Enter to accept recommended"
+  read -rp "  Choose [1-6] or Enter for recommended (${_RECOMMENDED_MODEL}): " _model_choice
+
+  case "$_model_choice" in
+    1) LLM_MODEL="phi4:3.8b" ;;
+    2) LLM_MODEL="qwen3:0.6b" ;;
+    3) LLM_MODEL="gemma3:1b" ;;
+    4) LLM_MODEL="tinyllama:1.1b" ;;
+    5) LLM_MODEL="llama3.2:3b" ;;
+    6) read -rp "  Enter model name (e.g. qwen3:0.6b): " LLM_MODEL ;;
+    *) LLM_MODEL="$_RECOMMENDED_MODEL" ;;
+  esac
+
 else
-  _RECOMMENDED_MODEL="llama3.1:8b"
-  _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM detected: balanced quality/speed"
+  # ── GPU path ───────────────────────────────────────────────────────────────
+  if [ "$_VRAM_GB" -ge 24 ]; then
+    _RECOMMENDED_MODEL="qwen2.5:32b"
+    _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: best quality model"
+  elif [ "$_VRAM_GB" -ge 16 ]; then
+    _RECOMMENDED_MODEL="qwen2.5:14b"
+    _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: high quality model"
+  elif [ "$_VRAM_GB" -ge 12 ]; then
+    _RECOMMENDED_MODEL="mistral-nemo:12b"
+    _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: strong quality model"
+  elif [ "$_VRAM_GB" -ge 8 ]; then
+    _RECOMMENDED_MODEL="llama3.1:8b"
+    _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: balanced quality/speed"
+  elif [ "$_VRAM_GB" -ge 5 ]; then
+    _RECOMMENDED_MODEL="mistral:7b"
+    _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: fast with strong reasoning"
+  else
+    _RECOMMENDED_MODEL="phi4:3.8b"
+    _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: best fit for available VRAM"
+  fi
+
+  echo ""
+  info "Hardware detected: ${_GPU_NAME}"
+  info "Recommended model: ${_RECOMMENDED_MODEL}  (${_RECOMMENDED_REASON})"
+  echo ""
+  echo "  Available models:"
+  echo "    1) phi4:3.8b         — efficient   (~2.5GB)  strong reasoning, low VRAM"
+  echo "    2) openhermes:7b     — fast        (~4GB)    instruction-tuned, sharp"
+  echo "    3) mistral:7b        — fast        (~4GB)    strong reasoning"
+  echo "    4) llama3.1:8b       — balanced    (~5GB)    recommended for most"
+  echo "    5) mistral-nemo:12b  — better      (~7GB)    needs 12GB+ VRAM"
+  echo "    6) qwen2.5:14b       — excellent   (~9GB)    needs 16GB+ VRAM"
+  echo "    7) qwen2.5:32b       — best quality (~20GB)  needs 24GB+ VRAM"
+  echo "    8) Custom — enter your own model name"
+  echo ""
+  echo "  GPU: ${_GPU_NAME}  |  Press Enter to accept recommended"
+  read -rp "  Choose [1-8] or Enter for recommended (${_RECOMMENDED_MODEL}): " _model_choice
+
+  case "$_model_choice" in
+    1) LLM_MODEL="phi4:3.8b" ;;
+    2) LLM_MODEL="openhermes:7b" ;;
+    3) LLM_MODEL="mistral:7b" ;;
+    4) LLM_MODEL="llama3.1:8b" ;;
+    5) LLM_MODEL="mistral-nemo:12b" ;;
+    6) LLM_MODEL="qwen2.5:14b" ;;
+    7) LLM_MODEL="qwen2.5:32b" ;;
+    8) read -rp "  Enter model name (e.g. llama3.2:1b): " LLM_MODEL ;;
+    *) LLM_MODEL="$_RECOMMENDED_MODEL" ;;
+  esac
 fi
-
-echo ""
-info "Hardware detected: ${_GPU_NAME}"
-info "Recommended model: ${_RECOMMENDED_MODEL}  (${_RECOMMENDED_REASON})"
-echo ""
-echo "  Available models:"
-echo "    1) llama3.2:3b    — fastest (~2GB)       good for quick Q&A"
-echo "    2) llama3.1:8b    — balanced (~5GB)      recommended for most"
-echo "    3) mistral:7b     — fast (~4GB)           strong reasoning"
-echo "    4) mistral-nemo:12b — better (~7GB)        needs 12GB+ VRAM/RAM"
-echo "    5) qwen2.5:14b    — excellent (~9GB)      needs 16GB+ VRAM/RAM"
-echo "    6) qwen2.5:32b    — best quality (~20GB)  needs 24GB+ VRAM/RAM"
-echo "    7) Custom — enter your own model name"
-echo ""
-echo "  GPU: ${_GPU_NAME}  |  Press Enter to accept recommended"
-read -rp "  Choose [1-7] or Enter for recommended (${_RECOMMENDED_MODEL}): " _model_choice
-
-case "$_model_choice" in
-  1) LLM_MODEL="llama3.2:3b" ;;
-  2) LLM_MODEL="llama3.1:8b" ;;
-  3) LLM_MODEL="mistral:7b" ;;
-  4) LLM_MODEL="mistral-nemo:12b" ;;
-  5) LLM_MODEL="qwen2.5:14b" ;;
-  6) LLM_MODEL="qwen2.5:32b" ;;
-  7) read -rp "  Enter model name (e.g. llama3.2:1b): " LLM_MODEL ;;
-  *) LLM_MODEL="$_RECOMMENDED_MODEL" ;;
-esac
 
 success "Selected LLM: ${LLM_MODEL}"
 echo ""

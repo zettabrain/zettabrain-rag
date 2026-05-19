@@ -133,15 +133,19 @@ def _get_gpu_info() -> dict:
     # Recommend model based on available VRAM
     vg = info["vram_gb"]
     if info["type"] == "none" or vg == 0:
-        info["recommended_model"] = "llama3.2:3b"
+        info["recommended_model"] = "phi4:3.8b"
     elif vg >= 24:
         info["recommended_model"] = "qwen2.5:32b"
     elif vg >= 16:
+        info["recommended_model"] = "qwen2.5:14b"
+    elif vg >= 12:
         info["recommended_model"] = "mistral-nemo:12b"
     elif vg >= 8:
         info["recommended_model"] = "llama3.1:8b"
+    elif vg >= 5:
+        info["recommended_model"] = "mistral:7b"
     else:
-        info["recommended_model"] = "llama3.2:3b"
+        info["recommended_model"] = "phi4:3.8b"
 
     return info
 
