@@ -27,6 +27,9 @@ zettabrain-rag/
 .env
 *.env
 
+# Claude Code — contains local tool permissions and may embed credentials
+.claude/
+
 # IDE
 .vscode/
 .idea/
