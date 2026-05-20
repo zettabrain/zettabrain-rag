@@ -1,12 +1,38 @@
+<div align="center">
+
 # ZettaBrain RAG
 
-**Private AI document assistant — your documents, your hardware, zero cloud.**
+**Chat with your documents using a fully local AI pipeline — no API keys, no cloud, no data leaving your machine.**
 
-<p align="center">
-  <img src="demo/hero.gif" alt="ZettaBrain demo — install, setup, ingest, chat" width="800">
-</p>
+[![PyPI](https://img.shields.io/pypi/v/zettabrain-rag?label=PyPI&color=blue)](https://pypi.org/project/zettabrain-rag/)
+[![Python](https://img.shields.io/pypi/pyversions/zettabrain-rag)](https://pypi.org/project/zettabrain-rag/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)](#system-requirements)
 
-Chat with your documents using a fully local AI. No API keys. No data leaving your machine. Runs on your own server or laptop with a secure HTTPS web GUI. Supports local disk, NFS, SMB and object storage.
+<br>
+
+<img src="demo/hero.gif" alt="ZettaBrain — install, setup, ingest, chat" width="820">
+
+</div>
+
+<br>
+
+ZettaBrain is a self-hosted RAG (Retrieval-Augmented Generation) assistant. Point it at a folder of documents and ask questions in plain language — through a web GUI or the terminal. It runs entirely on your own hardware using [Ollama](https://ollama.com) for inference and [ChromaDB](https://www.trychroma.com) for vector storage. Supports PDF, DOCX, TXT, and Markdown.
+
+---
+
+## Contents
+
+- [Quick Install](#quick-install)
+- [First-time Setup](#first-time-setup)
+- [Commands](#commands)
+- [Models](#models)
+- [Retrieval Pipeline](#retrieval-pipeline)
+- [System Requirements](#system-requirements)
+- [Sample Test Data](#sample-test-data)
+- [Configuration](#configuration)
+- [Diagnostics](#diagnostics)
+- [Uninstall](#uninstall)
 
 ---
 
@@ -16,62 +42,41 @@ Chat with your documents using a fully local AI. No API keys. No data leaving yo
 curl -fsSL https://zettabrain.app/install.sh | sudo bash
 ```
 
-Alternative mirror:
+The installer detects your OS, installs Python 3.9+, [pipx](https://pipx.pypa.io), and [Ollama](https://ollama.com), then pulls the `nomic-embed-text` embedding model. Supported on Ubuntu, Debian, Amazon Linux, RHEL, Fedora, Rocky Linux, AlmaLinux, macOS, and Windows (WSL2).
+
+**Developers — install via pipx:**
 
 ```bash
-curl -fsSL https://install.zettabrain.io | sudo bash
-```
-
-What the installer does:
-- Detects your OS (Ubuntu, Debian, Amazon Linux, RHEL, Fedora)
-- Installs Python 3.9+ and system dependencies
-- Installs `zettabrain-rag` via **pipx** (isolated, no virtualenv management needed)
-- Installs and starts Ollama
-- Pulls the `nomic-embed-text` embedding model (~275 MB)
-
----
-
-## Install via pipx (developers)
-
-```bash
-# Install pipx if you don't have it
-apt install -y pipx          # Ubuntu / Debian
-brew install pipx            # macOS
-
-# Install ZettaBrain
 pipx install zettabrain-rag
-
-# Verify
-zettabrain --version
 ```
 
 ---
 
-## First-time setup
+## First-time Setup
 
-### 1. Run setup wizard
+**1. Run the setup wizard**
 
 ```bash
 sudo zettabrain-setup
 ```
 
-Configures storage (Local / NFS / SMB), selects an LLM model based on your hardware, and enables HTTPS.
+Configures your document storage (local disk, NFS, SMB, or S3), selects an LLM matched to your hardware, and enables HTTPS.
 
-### 2. Launch the web GUI
+**2. Launch the web GUI**
 
 ```bash
 zettabrain-server
 ```
 
-The setup wizard prints the exact URL to use. It depends on the TLS option you chose:
+The wizard prints the exact URL at the end of setup:
 
-| TLS option | Access URL |
+| TLS option | URL |
 |---|---|
 | Caddy (Let's Encrypt) | `https://your-domain.com:7860` |
-| Self-signed | `https://<machine-ip>:7860` — accept the one-time browser warning |
+| Self-signed | `https://<machine-ip>:7860` *(accept the one-time browser warning)* |
 | HTTP only | `http://<machine-ip>:7860` |
 
-### 3. Or use the CLI chat
+**3. Or chat in the terminal**
 
 ```bash
 zettabrain-chat
@@ -83,222 +88,163 @@ zettabrain-chat
 
 | Command | Description |
 |---|---|
-| `sudo zettabrain-setup` | Storage wizard + model selection + TLS cert |
-| `zettabrain-server` | Launch secure HTTPS web GUI (port 7860) |
+| `sudo zettabrain-setup` | Storage wizard, model selection, TLS setup |
+| `zettabrain-server` | Launch the HTTPS web GUI (port 7860) |
 | `zettabrain-chat` | Interactive RAG chat in the terminal |
-| `zettabrain-chat --rebuild` | Rebuild vector store then start chat |
-| `zettabrain-chat --debug` | Show retrieved chunks on every query |
 | `zettabrain-ingest` | Ingest documents into the vector store |
 | `zettabrain-ingest --folder /path` | Ingest a specific folder |
 | `zettabrain-ingest --file /path/doc.pdf` | Ingest a single file |
-| `zettabrain-ingest --stats` | Show what is in the vector store |
+| `zettabrain-ingest --stats` | Show vector store contents |
 | `zettabrain-ingest --clear` | Wipe the vector store |
-| `zettabrain-status` | Show install paths, cert info, and store statistics |
-| `sudo zettabrain-storage add` | Add a new storage source after initial setup |
-| `zettabrain-storage list` | List configured storage sources |
+| `zettabrain-status` | Show version, cert info, and store stats |
+| `sudo zettabrain-storage add` | Add a storage source after initial setup |
 
-### CLI chat commands
+**Inside `zettabrain-chat`:**
 
-While inside `zettabrain-chat`:
-
-| Type | Action |
+| Command | Action |
 |---|---|
-| Any question | Query your documents |
-| `sources` | Show which document chunks were used |
-| `timing` | Show retrieve / generate time for all queries this session |
-| `debug on` | Show retrieved chunks on every query |
-| `debug off` | Hide debug output |
+| *(any question)* | Query your documents |
+| `sources` | Show which chunks were retrieved |
+| `timing` | Show retrieve / generate times for this session |
+| `debug on` / `debug off` | Toggle chunk-level debug output |
 | `quit` | Exit |
 
 ---
 
-## System requirements
+## Models
+
+`sudo zettabrain-setup` detects your hardware and recommends the best model. You can also select any Ollama model from the menu or enter a custom name.
+
+**CPU-only**
+
+| Model | Size | Speed | Best for |
+|---|---|---|---|
+| `qwen3:0.6b` | ~500 MB | Instant | Quick lookups, routing |
+| `gemma3:1b` | ~815 MB | Very fast | Structured explanations |
+| `tinyllama:1.1b` | ~638 MB | Very fast | Basic Q&A |
+| `phi4-mini` ⭐ | ~2.5 GB | Moderate | **Best RAG reasoning on CPU** |
+| `llama3.2:3b` | ~2 GB | Moderate | General purpose |
+| `mistral:7b` | ~4 GB | Slow | Strong instruction (needs 12 GB+ RAM) |
+| `llama3.1:8b` | ~5 GB | Slow | Balanced quality (needs 16 GB+ RAM) |
+
+**GPU**
+
+| Model | VRAM | Speed | Best for |
+|---|---|---|---|
+| `phi4-mini` | ~2.5 GB | Fast | Best reasoning per GB |
+| `mistral:7b` | ~4 GB | Fast | Strong instruction following |
+| `openhermes` | ~4 GB | Fast | Formatted RAG responses |
+| `llama3.1:8b` | ~5 GB | Fast | Balanced quality |
+| `mistral-nemo:12b` | ~7 GB | Moderate | Better reasoning |
+| `qwen2.5:14b` | ~9 GB | Moderate | Excellent quality |
+| `qwen2.5:32b` | ~20 GB | Slower | Best quality |
+
+Switch model at any time by editing `/opt/zettabrain/src/zettabrain.env`:
+
+```bash
+ZETTABRAIN_LLM_MODEL=qwen2.5:14b
+```
+
+Then restart: `zettabrain-server`
+
+**Performance reference** — compliance query against a 10-document financial corpus:
+
+| Model | RAM | Retrieve | Generate | Total |
+|---|---|---|---|---|
+| `qwen3:0.6b` (CPU) | 2 GB | ~1 s | 15–40 s | ~1 min |
+| `phi4-mini` (CPU) | 6 GB | ~1 s | 120–300 s | 2–5 min |
+| `llama3.2:3b` (CPU) | 6 GB | ~1 s | 90–180 s | 2–3 min |
+| `llama3.1:8b` (CPU) | 16 GB | ~1 s | 200–400 s | 4–7 min |
+| `mistral:7b` (GPU) | 8 GB | ~1 s | 5–12 s | 6–13 s |
+| `llama3.1:8b` (GPU) | 10 GB | ~1 s | 3–7 s | 4–8 s |
+| `qwen2.5:14b` (GPU) | 20 GB | ~1 s | 4–10 s | 5–11 s |
+| Apple M2/M3 16 GB | 16 GB | ~1 s | 10–20 s | 11–21 s |
+
+---
+
+## Retrieval Pipeline
+
+ZettaBrain uses a five-stage hybrid retrieval pipeline:
+
+1. **Adaptive chunking** — chunk size tuned per document type and text density
+2. **MMR semantic search** — Maximum Marginal Relevance via ChromaDB (diversity + relevance)
+3. **BM25 keyword search** — exact-term matching on the same corpus
+4. **Merge & deduplicate** — semantic results ranked first, duplicates removed by content hash
+5. **Cross-encoder re-ranking** — FlashRank (`ms-marco-MiniLM-L-12-v2`) selects the best chunks
+
+Supported formats: `.pdf` · `.docx` · `.txt` · `.md`
+
+---
+
+## System Requirements
 
 | | Minimum | Recommended |
 |---|---|---|
 | **RAM** | 4 GB | 8 GB (CPU) · 16 GB+ (GPU) |
 | **CPU** | 4 cores / 2.5 GHz | 8 cores / 3.0 GHz |
 | **Disk** | 10 GB free | 40 GB free |
-| **OS** | See below | See below |
 | **Python** | 3.9 | 3.11+ |
 
-**Supported operating systems**
+**Supported platforms**
 
 | Platform | Versions |
 |---|---|
-| **Ubuntu** | 20.04, 22.04, 24.04 |
-| **Debian** | 11, 12 |
-| **Amazon Linux** | 2, 2023 |
-| **RHEL / CentOS Stream / Rocky / AlmaLinux** | 8, 9 |
-| **Fedora** | 38+ |
-| **Linux Mint / Pop!\_OS** | Current releases |
-| **macOS** | 12 Monterey+ (via `pipx install`) |
-| **Windows** | 10 / 11 via WSL2, or `pipx install` for Python components |
+| Ubuntu | 20.04, 22.04, 24.04 |
+| Debian | 11, 12 |
+| Amazon Linux | 2, 2023 |
+| RHEL / CentOS Stream / Rocky / AlmaLinux | 8, 9 |
+| Fedora | 38+ |
+| Linux Mint / Pop!\_OS | Current releases |
+| macOS | 12 Monterey+ *(via `pipx install`)* |
+| Windows | 10 / 11 via WSL2 |
 
-> **RAM depends on model:** `qwen3:0.6b` runs on 2 GB; `phi4-mini` (CPU default) needs ~6 GB; GPU models from `mistral:7b` upward need 8–24 GB VRAM. See the performance table above for per-model requirements.
-
----
-
-## GPU & model selection
-
-Ollama **auto-detects your GPU** on install — NVIDIA (CUDA), AMD (ROCm), and Apple Silicon (Metal). No configuration needed beyond having the correct drivers installed.
-
-`sudo zettabrain-setup` detects your hardware and shows the right menu for your machine.
-
-**CPU-only (no GPU detected):**
-
-```
-Hardware detected: CPU only
-Recommended model: phi4-mini  (CPU-only: best reasoning for RAG without GPU)
-
-  Available models (optimised for CPU):
-    1) qwen3:0.6b      — instant  (~500MB)   quick lookups and routing
-    2) gemma3:1b       — very fast (~815MB)  structured explanations
-    3) tinyllama:1.1b  — very fast (~638MB)  basic Q&A, coherent chat
-    4) phi4-mini       — moderate (~2.5GB)   best reasoning for RAG    ← recommended
-    5) llama3.2:3b     — moderate (~2GB)     general purpose
-    6) mistral:7b      — slow     (~4GB)     strong instruction (needs 12GB+ RAM)
-    7) llama3.1:8b     — slow     (~5GB)     balanced quality (needs 16GB+ RAM)
-    8) openhermes:7b   — slow     (~4GB)     best formatted RAG (needs 12GB+ RAM)
-    9) Custom
-```
-
-**GPU detected:**
-
-```
-Hardware detected: NVIDIA GeForce RTX 3080 (10GB VRAM)
-Recommended model: llama3.1:8b  (10GB VRAM: balanced quality/speed)
-
-  Available models:
-    1) phi4-mini         — fast on GPU    (~2.5GB)  best reasoning per GB
-    2) mistral:7b        — fast on GPU    (~4GB)    strong instruction following
-    3) openhermes:7b     — fast on GPU    (~4GB)    best formatted RAG responses
-    4) llama3.1:8b       — fast on GPU    (~5GB)    balanced quality for most
-    5) mistral-nemo:12b  — moderate       (~7GB)    better reasoning  (needs 8GB+ VRAM)
-    6) qwen2.5:14b       — moderate       (~9GB)    excellent quality (needs 10GB+ VRAM)
-    7) qwen2.5:32b       — slower         (~20GB)   best quality      (needs 24GB+ VRAM)
-    8) Custom
-```
-
-You can switch model at any time by editing `/opt/zettabrain/src/zettabrain.env`:
-
-```bash
-ZETTABRAIN_LLM_MODEL=qwen2.5:14b
-```
-
-Then restart the server: `zettabrain-server`
-
-### Performance reference
-
-Timings for a real compliance query against a 10-document financial services corpus:
-
-> **"What is the pre-clearance process for personal securities trades and how long does approval last?"**
-
-| Model | Min RAM | Retrieve | Generate | Total |
-|---|---|---|---|---|
-| qwen3:0.6b | 2 GB | ~1 s | 15–40 s | ~1 min |
-| phi4-mini | 6 GB | ~1 s | 120–300 s | ~2–5 min |
-| llama3.2:3b | 6 GB | ~1 s | 90–180 s | ~2–3 min |
-| llama3.1:8b (CPU) | 16 GB | ~1 s | 200–400 s | ~4–7 min |
-| mistral:7b (GPU 5–8 GB VRAM) | 8 GB | ~1 s | 5–12 s | ~6–13 s |
-| llama3.1:8b (GPU 8–10 GB VRAM) | 10 GB | ~1 s | 3–7 s | ~4–8 s |
-| qwen2.5:14b (GPU 16 GB VRAM) | 20 GB | ~1 s | 4–10 s | ~5–11 s |
-| Apple M2 / M3 (16 GB unified) | 16 GB | ~1 s | 10–20 s | ~11–21 s |
-
-**Retrieve** covers: query embedding + ChromaDB MMR search + BM25 keyword search + FlashRank re-ranking.  
-**Generate** depends on model size and hardware. A GPU reduces CPU generate time by 30–60×.
-
-The web UI shows per-query timing after every response: `⚡ 938ms retrieve · 🤖 6.3s generate`.
-
----
-
-## Retrieval pipeline
-
-ZettaBrain uses a hybrid retrieval approach for accuracy:
-
-1. **Adaptive chunking** — chunk size tuned per document type (PDF / DOCX / TXT) and text density
-2. **MMR semantic search** — Maximum Marginal Relevance via ChromaDB (diversity + relevance)
-3. **BM25 keyword search** — exact term matching on the same corpus
-4. **Merge & deduplicate** — semantic results ranked first, duplicates removed by content hash
-5. **Cross-encoder re-ranking** — FlashRank (`ms-marco-MiniLM-L-12-v2`) picks the best chunks before sending to the LLM
-
----
-
-## Supported document formats
-
-`.pdf`  `.txt`  `.md`  `.docx`
+GPU is optional. Ollama auto-detects NVIDIA (CUDA), AMD (ROCm), and Apple Silicon (Metal).
 
 ---
 
 ## Sample Test Data
 
-Not ready to use your own documents yet? Download ready-made test datasets to evaluate ZettaBrain against realistic enterprise content.
+Not ready to use your own documents? Download realistic enterprise datasets to evaluate ZettaBrain immediately.
 
-### Available datasets
-
-| Industry | Documents | Organisation (fictional) |
+| Dataset | Documents | Organisation |
 |---|---|---|
-| **Financial Services** | 10 DOCX files | Apex Financial Group — trading policy, AML/KYC procedures, insider trading, risk framework, employee handbook |
-| **Healthcare** | 10 DOCX files | Riverside Medical Center — HIPAA privacy & security, medication protocols, emergency response codes, clinical documentation |
-
-### Download
-
-| File | Size | Link |
-|---|---|---|
-| Financial Services documents | ~90 KB | [zettabrain-financial-test-docs.zip](https://zettabrain.io/sample-data/zettabrain-financial-test-docs.zip) |
-| Healthcare documents | ~91 KB | [zettabrain-healthcare-test-docs.zip](https://zettabrain.io/sample-data/zettabrain-healthcare-test-docs.zip) |
-| Test prompts guide (40 prompts) | ~7 KB | [RAG_Test_Prompts_Guide.md](https://zettabrain.io/sample-data/RAG_Test_Prompts_Guide.md) |
-
-The prompts guide includes 20 industry-specific prompts per dataset, cross-document summary prompts, and adversarial prompts that verify ZettaBrain correctly declines to answer questions not present in the documents.
-
-### Quick start with sample data
+| [Financial Services](https://zettabrain.io/sample-data/zettabrain-financial-test-docs.zip) | 10 DOCX · ~90 KB | Apex Financial Group — trading policy, AML/KYC, insider trading, risk framework |
+| [Healthcare](https://zettabrain.io/sample-data/zettabrain-healthcare-test-docs.zip) | 10 DOCX · ~91 KB | Riverside Medical Center — HIPAA, medication protocols, emergency codes |
+| [Test prompts guide](https://zettabrain.io/sample-data/RAG_Test_Prompts_Guide.md) | 40 prompts · ~7 KB | 20 per dataset + cross-document + adversarial |
 
 ```bash
-# Download and unzip the financial services dataset
 curl -LO https://zettabrain.io/sample-data/zettabrain-financial-test-docs.zip
 unzip zettabrain-financial-test-docs.zip -d ~/zettabrain-test
-
-# Point ZettaBrain at the folder and ingest
 zettabrain-ingest --folder ~/zettabrain-test/financial
-
-# Start chatting
 zettabrain-chat
 ```
 
-Open the web GUI at the URL shown by the setup wizard and paste prompts from the guide directly into the chat.
-
-### Sample prompts from the guide
-
-**Financial Services — Apex Financial Group**
+**Sample prompts (financial)**
 
 - *"What is the pre-clearance process for personal securities trades and how long does approval last?"*
-- *"When do I need to file a Suspicious Activity Report and what is the deadline for filing?"*
+- *"When do I need to file a Suspicious Activity Report and what is the deadline?"*
 - *"What is the maximum hotel rate I can expense in New York City?"*
-- *"What happens when a risk event has a financial impact of over $10 million — who needs to be notified and how quickly?"*
 
-**Healthcare — Riverside Medical Center**
+**Sample prompts (healthcare)**
 
-- *"What should I do if I suspect a PHI breach — who do I contact and what is the notification timeline?"*
-- *"Which medications require an independent double-check by a second nurse before administration?"*
-- *"A patient received the wrong medication — what are the steps I need to take to report it?"*
+- *"What should I do if I suspect a PHI breach — who do I contact and what is the timeline?"*
+- *"Which medications require an independent double-check before administration?"*
 - *"What are the emergency response codes and what action should staff take for each?"*
-
-The full guide includes 20 prompts per dataset plus cross-document and adversarial prompts.
 
 ---
 
 ## Configuration
 
-All settings can be overridden via environment variables or `/opt/zettabrain/src/zettabrain.env`:
+All settings can be set via environment variables or `/opt/zettabrain/src/zettabrain.env`:
 
 | Variable | Default | Description |
 |---|---|---|
 | `ZETTABRAIN_DOCS` | `/opt/zettabrain/data` | Documents folder |
 | `ZETTABRAIN_CHROMA` | `/opt/zettabrain/src/zettabrain_vectorstore` | ChromaDB path |
-| `ZETTABRAIN_LLM_MODEL` | `llama3.1:8b` | Ollama LLM model |
+| `ZETTABRAIN_LLM_MODEL` | `phi4-mini` | Ollama LLM model |
 | `ZETTABRAIN_EMBED_MODEL` | `nomic-embed-text` | Ollama embedding model |
-| `ZETTABRAIN_CHUNK_SIZE` | `1000` (PDF) / `800` (TXT) | Chunk size (adaptive) |
-| `ZETTABRAIN_CHUNK_OVERLAP` | `150` (PDF) / `100` (TXT) | Chunk overlap (adaptive) |
+| `ZETTABRAIN_CHUNK_SIZE` | `1000` (PDF) / `800` (TXT) | Chunk size |
+| `ZETTABRAIN_CHUNK_OVERLAP` | `150` (PDF) / `100` (TXT) | Chunk overlap |
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama API endpoint |
 
 ---
@@ -306,52 +252,25 @@ All settings can be overridden via environment variables or `/opt/zettabrain/src
 ## Diagnostics
 
 ```bash
-# Full status — version, certs, vector store stats
-zettabrain-status
-
-# Verify ChromaDB is working
-python3 /opt/zettabrain/src/01_chromadb_setup.py
-
-# Verify embedding model is working
-python3 /opt/zettabrain/src/02_embeddings_test.py
-
-# Check Ollama is running
-curl http://localhost:11434
-
-# List downloaded models
-ollama list
-
-# View server logs
-journalctl -u zettabrain -f
+zettabrain-status                              # version, certs, store stats
+curl http://localhost:11434                    # check Ollama is running
+ollama list                                    # list downloaded models
+journalctl -u zettabrain -f                   # stream server logs (Linux)
+tail -f /opt/zettabrain/logs/server.log       # stream server logs (macOS)
 ```
 
 ---
 
 ## Uninstall
 
-### pipx install
 ```bash
 pipx uninstall zettabrain-rag
 sudo rm -rf /opt/zettabrain
-```
-
-### One-line installer
-```bash
-pipx uninstall zettabrain-rag
-sudo rm -rf /opt/zettabrain /var/log/zettabrain-install.log
 sudo systemctl disable --now zettabrain 2>/dev/null || true
 ```
 
 ---
 
-## Contributors
-
-| | |
-|---|---|
-| **[@zettabrain](https://github.com/zettabrain)** | Creator & maintainer |
-
----
-
 ## License
 
-MIT — © ZettaBrain
+MIT © [ZettaBrain](https://zettabrain.io)
