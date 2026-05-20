@@ -129,7 +129,7 @@ While inside `zettabrain-chat`:
 | **macOS** | 12 Monterey+ (via `pipx install`) |
 | **Windows** | 10 / 11 via WSL2, or `pipx install` for Python components |
 
-> **RAM depends on model:** `qwen3:0.6b` runs on 2 GB; `phi4:3.8b` (CPU default) needs ~6 GB; GPU models from `mistral:7b` upward need 8–24 GB VRAM. See the performance table above for per-model requirements.
+> **RAM depends on model:** `qwen3:0.6b` runs on 2 GB; `phi4-mini` (CPU default) needs ~6 GB; GPU models from `mistral:7b` upward need 8–24 GB VRAM. See the performance table above for per-model requirements.
 
 ---
 
@@ -143,13 +143,13 @@ Ollama **auto-detects your GPU** on install — NVIDIA (CUDA), AMD (ROCm), and A
 
 ```
 Hardware detected: CPU only
-Recommended model: phi4:3.8b  (CPU-only: best reasoning for RAG without GPU)
+Recommended model: phi4-mini  (CPU-only: best reasoning for RAG without GPU)
 
   Available models (optimised for CPU):
     1) qwen3:0.6b      — instant  (~500MB)   quick lookups and routing
     2) gemma3:1b       — very fast (~815MB)  structured explanations
     3) tinyllama:1.1b  — very fast (~638MB)  basic Q&A, coherent chat
-    4) phi4:3.8b       — moderate (~2.5GB)   best reasoning for RAG    ← recommended
+    4) phi4-mini       — moderate (~2.5GB)   best reasoning for RAG    ← recommended
     5) llama3.2:3b     — moderate (~2GB)     general purpose
     6) mistral:7b      — slow     (~4GB)     strong instruction (needs 12GB+ RAM)
     7) llama3.1:8b     — slow     (~5GB)     balanced quality (needs 16GB+ RAM)
@@ -164,7 +164,7 @@ Hardware detected: NVIDIA GeForce RTX 3080 (10GB VRAM)
 Recommended model: llama3.1:8b  (10GB VRAM: balanced quality/speed)
 
   Available models:
-    1) phi4:3.8b         — fast on GPU    (~2.5GB)  best reasoning per GB
+    1) phi4-mini         — fast on GPU    (~2.5GB)  best reasoning per GB
     2) mistral:7b        — fast on GPU    (~4GB)    strong instruction following
     3) openhermes:7b     — fast on GPU    (~4GB)    best formatted RAG responses
     4) llama3.1:8b       — fast on GPU    (~5GB)    balanced quality for most
