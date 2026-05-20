@@ -63,21 +63,21 @@ setup() {
   echo -e "${DIM}── Step 3/6: LLM selection${RST}"
   sleep 0.2
   echo -e "  Hardware detected: ${YLW}CPU only${RST}"
-  echo -e "  Recommended model: ${GRN}phi4:3.8b${RST}  (best CPU quality/speed)"
+  echo -e "  Recommended model: ${GRN}phi4-mini${RST}  (best CPU quality/speed)"
   echo ""
   echo "  CPU-optimised models (no GPU required):"
-  echo -e "    ${GRN}1) phi4:3.8b${RST}       — recommended  ← default"
+  echo -e "    ${GRN}1) phi4-mini${RST}       — recommended  ← default"
   echo      "    2) qwen3:0.6b      — ultrafast"
   echo      "    3) gemma3:1b       — tiny"
   echo      "    4) tinyllama:1.1b  — lightweight"
   echo      "    5) llama3.2:3b     — general purpose"
   sleep 0.6
   echo ""
-  ok  "Selected LLM: phi4:3.8b"
+  ok  "Selected LLM: phi4-mini"
   sleep 0.3
-  inf "Pulling phi4:3.8b — this may take a few minutes..."
+  inf "Pulling phi4-mini — this may take a few minutes..."
   sleep 0.7
-  ok  "LLM ready: phi4:3.8b"
+  ok  "LLM ready: phi4-mini"
   echo ""
   sleep 0.3
 
@@ -136,7 +136,7 @@ ingest() {
 # ── Phase 4: chat ─────────────────────────────────────────────────────────────
 chat() {
   echo ""
-  echo -e "${BLD}${CYN}ZettaBrain Chat${RST}  ${DIM}[phi4:3.8b · 258 chunks]${RST}  Type 'quit' to exit"
+  echo -e "${BLD}${CYN}ZettaBrain Chat${RST}  ${DIM}[phi4-mini · 258 chunks]${RST}  Type 'quit' to exit"
   echo -e "${DIM}────────────────────────────────────────────────────────────${RST}"
   echo ""
   sleep 0.5

@@ -129,7 +129,7 @@ While inside `zettabrain-chat`:
 | **macOS** | 12 Monterey+ (via `pipx install`) |
 | **Windows** | 10 / 11 via WSL2, or `pipx install` for Python components |
 
-> **RAM depends on model:** `qwen3:0.6b` runs on 2 GB; `phi4:3.8b` (CPU default) needs ~6 GB; GPU models from `mistral:7b` upward need 8–24 GB VRAM. See the performance table above for per-model requirements.
+> **RAM depends on model:** `qwen3:0.6b` runs on 2 GB; `phi4-mini` (CPU default) needs ~6 GB; GPU models from `mistral:7b` upward need 8–24 GB VRAM. See the performance table above for per-model requirements.
 
 ---
 
@@ -143,10 +143,10 @@ Ollama **auto-detects your GPU** on install — NVIDIA (CUDA), AMD (ROCm), and A
 
 ```
 Hardware detected: CPU only
-Recommended model: phi4:3.8b  (CPU-only: best quality/speed balance for CPU inference)
+Recommended model: phi4-mini  (CPU-only: best quality/speed balance for CPU inference)
 
   CPU-optimised models (no GPU required):
-    1) phi4:3.8b       — recommended (~2.5GB)  best CPU quality/speed  ← default
+    1) phi4-mini       — recommended (~2.5GB)  best CPU quality/speed  ← default
     2) qwen3:0.6b      — ultrafast  (~0.5GB)   lowest RAM, instant replies
     3) gemma3:1b       — tiny       (~0.8GB)   good for quick Q&A
     4) tinyllama:1.1b  — very fast  (~0.7GB)   lightweight
@@ -161,7 +161,7 @@ Hardware detected: NVIDIA GeForce RTX 3080 (10GB VRAM)
 Recommended model: llama3.1:8b  (10GB VRAM: balanced quality/speed)
 
   Available models:
-    1) phi4:3.8b         — efficient   (~2.5GB)  strong reasoning, low VRAM
+    1) phi4-mini         — efficient   (~2.5GB)  strong reasoning, low VRAM
     2) openhermes:7b     — fast        (~4GB)    instruction-tuned, sharp
     3) mistral:7b        — fast        (~4GB)    strong reasoning
     4) llama3.1:8b       — balanced    (~5GB)    recommended for most
@@ -188,7 +188,7 @@ Timings for a real compliance query against a 10-document financial services cor
 | Model | Min RAM | Retrieve | Generate | Total |
 |---|---|---|---|---|
 | qwen3:0.6b | 2 GB | ~1 s | 15–40 s | ~1 min |
-| phi4:3.8b | 6 GB | ~1 s | 120–300 s | ~2–5 min |
+| phi4-mini | 6 GB | ~1 s | 120–300 s | ~2–5 min |
 | llama3.2:3b | 6 GB | ~1 s | 90–180 s | ~2–3 min |
 | llama3.1:8b (CPU) | 16 GB | ~1 s | 200–400 s | ~4–7 min |
 | mistral:7b (GPU 5–8 GB VRAM) | 8 GB | ~1 s | 5–12 s | ~6–13 s |

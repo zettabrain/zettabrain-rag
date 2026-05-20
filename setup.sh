@@ -946,7 +946,7 @@ fi
 
 if [ "$_GPU_TYPE" = "none" ] || [ "$_VRAM_GB" -lt 4 ]; then
   # ── CPU-only path ──────────────────────────────────────────────────────────
-  _RECOMMENDED_MODEL="phi4:3.8b"
+  _RECOMMENDED_MODEL="phi4-mini"
   _RECOMMENDED_REASON="CPU-only: best quality/speed balance for CPU inference"
 
   echo ""
@@ -954,7 +954,7 @@ if [ "$_GPU_TYPE" = "none" ] || [ "$_VRAM_GB" -lt 4 ]; then
   info "Recommended model: ${_RECOMMENDED_MODEL}  (${_RECOMMENDED_REASON})"
   echo ""
   echo "  CPU-optimised models (no GPU required):"
-  echo "    1) phi4:3.8b       — recommended (~2.5GB)  best CPU quality/speed  ← default"
+  echo "    1) phi4-mini       — recommended (~2.5GB)  best CPU quality/speed  ← default"
   echo "    2) qwen3:0.6b      — ultrafast  (~0.5GB)   lowest RAM, instant replies"
   echo "    3) gemma3:1b       — tiny       (~0.8GB)   good for quick Q&A"
   echo "    4) tinyllama:1.1b  — very fast  (~0.7GB)   lightweight"
@@ -965,7 +965,7 @@ if [ "$_GPU_TYPE" = "none" ] || [ "$_VRAM_GB" -lt 4 ]; then
   read -rp "  Choose [1-6] or Enter for recommended (${_RECOMMENDED_MODEL}): " _model_choice
 
   case "$_model_choice" in
-    1) LLM_MODEL="phi4:3.8b" ;;
+    1) LLM_MODEL="phi4-mini" ;;
     2) LLM_MODEL="qwen3:0.6b" ;;
     3) LLM_MODEL="gemma3:1b" ;;
     4) LLM_MODEL="tinyllama:1.1b" ;;
@@ -992,7 +992,7 @@ else
     _RECOMMENDED_MODEL="mistral:7b"
     _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: fast with strong reasoning"
   else
-    _RECOMMENDED_MODEL="phi4:3.8b"
+    _RECOMMENDED_MODEL="phi4-mini"
     _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: best fit for available VRAM"
   fi
 
@@ -1001,7 +1001,7 @@ else
   info "Recommended model: ${_RECOMMENDED_MODEL}  (${_RECOMMENDED_REASON})"
   echo ""
   echo "  Available models:"
-  echo "    1) phi4:3.8b         — efficient   (~2.5GB)  strong reasoning, low VRAM"
+  echo "    1) phi4-mini         — efficient   (~2.5GB)  strong reasoning, low VRAM"
   echo "    2) openhermes:7b     — fast        (~4GB)    instruction-tuned, sharp"
   echo "    3) mistral:7b        — fast        (~4GB)    strong reasoning"
   echo "    4) llama3.1:8b       — balanced    (~5GB)    recommended for most"
@@ -1014,7 +1014,7 @@ else
   read -rp "  Choose [1-8] or Enter for recommended (${_RECOMMENDED_MODEL}): " _model_choice
 
   case "$_model_choice" in
-    1) LLM_MODEL="phi4:3.8b" ;;
+    1) LLM_MODEL="phi4-mini" ;;
     2) LLM_MODEL="openhermes:7b" ;;
     3) LLM_MODEL="mistral:7b" ;;
     4) LLM_MODEL="llama3.1:8b" ;;

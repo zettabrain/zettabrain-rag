@@ -1,7 +1,7 @@
 ---
 name: zettabrain-rag
-description: Chat with your private documents using a fully local RAG pipeline. No cloud, no API keys — runs on your own machine with Ollama + ChromaDB.
-version: 1.0.1
+description: Query documents on your NFS shares, SMB servers, or local drive using local AI. No cloud, no Docker, no API keys — the only RAG skill that reads from enterprise storage directly. Runs on your own machine with Ollama + ChromaDB.
+version: 1.0.2
 emoji: "🧠"
 homepage: https://zettabrain.io
 metadata:
