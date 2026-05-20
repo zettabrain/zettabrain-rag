@@ -316,7 +316,7 @@ def main():
     if args.file:
         profile = _get_storage_profile(str(Path(args.file).parent))
         print(f"\nIngesting file: {args.file}")
-        print(f"Storage: {profile['storage_type']}  chunk={profile['chunk_size']}  overlap={profile['chunk_overlap']}")
+        print(f"Storage: {profile['storage_type']}")
         if ingest_file(args.file, vectorstore, hash_cache, profile):
             ingested += 1
 
@@ -330,7 +330,7 @@ def main():
         profile = _get_storage_profile(str(folder))
         files = [f for f in folder.rglob("*") if f.suffix.lower() in SUPPORTED]
         print(f"\nFound {len(files)} supported file(s) in {folder}")
-        print(f"Storage: {profile['storage_type']}  chunk={profile['chunk_size']}  overlap={profile['chunk_overlap']}  file-batch={profile['batch_size']}")
+        print(f"Storage: {profile['storage_type']}  file-batch={profile['batch_size']}")
 
         batch_count = 0
         for f in sorted(files):
