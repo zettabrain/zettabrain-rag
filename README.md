@@ -63,7 +63,13 @@ Configures storage (Local / NFS / SMB), selects an LLM model based on your hardw
 zettabrain-server
 ```
 
-Open **https://local.zettabrain.app:7860** in your browser — trusted HTTPS, fully private.
+The setup wizard prints the exact URL to use. It depends on the TLS option you chose:
+
+| TLS option | Access URL |
+|---|---|
+| Caddy (Let's Encrypt) | `https://your-domain.com:7860` |
+| Self-signed | `https://<machine-ip>:7860` — accept the one-time browser warning |
+| HTTP only | `http://<machine-ip>:7860` |
 
 ### 3. Or use the CLI chat
 
@@ -259,7 +265,7 @@ zettabrain-ingest --folder ~/zettabrain-test/financial
 zettabrain-chat
 ```
 
-Open the web GUI at `https://local.zettabrain.app:7860` and paste prompts from the guide directly into the chat.
+Open the web GUI at the URL shown by the setup wizard and paste prompts from the guide directly into the chat.
 
 ### Sample prompts from the guide
 

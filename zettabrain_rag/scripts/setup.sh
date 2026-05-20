@@ -1148,6 +1148,13 @@ while true; do
   esac
 done
 
+# ── Detect local IP for self-signed cert SAN and access URL ──────
+_LOCAL_IP=$(ip route get 1 2>/dev/null | grep -oP 'src \K[^ ]+' \
+  || hostname -I 2>/dev/null | awk '{print $1}' \
+  || ifconfig 2>/dev/null | grep "inet " | grep -v "127.0.0.1" | awk '{print $2}' | head -1 \
+  || hostname 2>/dev/null)
+_LOCAL_IP="${_LOCAL_IP:-127.0.0.1}"
+
 mkdir -p "$CERT_DIR"
 chmod 700 "$CERT_DIR"
 
@@ -1248,8 +1255,8 @@ elif [ "$ZETTABRAIN_TLS_PROVIDER" = "self-signed" ]; then
         -keyout "$CERT_DIR/key.pem" \
         -out    "$CERT_DIR/cert.pem" \
         -days 3650 -nodes \
-        -subj "/CN=local.zettabrain.app" \
-        -addext "subjectAltName=DNS:local.zettabrain.app,DNS:localhost,IP:127.0.0.1" \
+        -subj "/CN=${_LOCAL_IP}" \
+        -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:${_LOCAL_IP}" \
         2>/dev/null
       chmod 600 "$CERT_DIR/key.pem"
       chmod 644 "$CERT_DIR/cert.pem"
@@ -1478,10 +1485,22 @@ echo -e "  Config file  : ${GREEN}${CONFIG_FILE}${NC}"
 echo ""
 echo -e "${CYAN}─── Access the GUI ──────────────────────────────────────${NC}"
 echo ""
-echo -e "  Open in browser: ${BOLD}https://local.zettabrain.app:7860${NC}"
-echo ""
-echo -e "  ${GREEN}Trusted HTTPS certificate — no browser warnings.${NC}"
-echo -e "  ${GREEN}Traffic stays entirely on this machine (127.0.0.1).${NC}"
+if [ "$ZETTABRAIN_TLS_PROVIDER" = "caddy" ]; then
+  echo -e "  Open in browser: ${BOLD}https://${CADDY_DOMAIN}:7860${NC}"
+  echo ""
+  echo -e "  ${GREEN}Trusted HTTPS via Let's Encrypt — no browser warnings.${NC}"
+elif [ "$ZETTABRAIN_TLS_PROVIDER" = "self-signed" ]; then
+  echo -e "  Open in browser: ${BOLD}https://${_LOCAL_IP}:7860${NC}"
+  echo -e "  Or on this machine : ${BOLD}https://localhost:7860${NC}"
+  echo ""
+  echo -e "  ${YELLOW}Accept the browser security warning once (self-signed cert).${NC}"
+  echo -e "  ${GREEN}Traffic stays on your local network — no data leaves this machine.${NC}"
+else
+  echo -e "  Open in browser: ${BOLD}http://${_LOCAL_IP}:7860${NC}"
+  echo -e "  Or on this machine : ${BOLD}http://localhost:7860${NC}"
+  echo ""
+  echo -e "  ${YELLOW}HTTP only — suitable for trusted local networks only.${NC}"
+fi
 echo ""
 echo -e "${CYAN}─── Useful Commands ─────────────────────────────────────${NC}"
 echo ""
