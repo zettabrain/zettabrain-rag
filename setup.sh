@@ -944,38 +944,48 @@ if [ "$_GPU_TYPE" = "none" ] && [ "$(uname -m 2>/dev/null)" = "arm64" ]; then
   fi
 fi
 
-if [ "$_GPU_TYPE" = "none" ] || [ "$_VRAM_GB" -lt 4 ]; then
-  # ── CPU-only path ──────────────────────────────────────────────────────────
-  _RECOMMENDED_MODEL="phi4-mini"
-  _RECOMMENDED_REASON="CPU-only: best quality/speed balance for CPU inference"
+# ── Show hardware-appropriate model menu ───────────────────────────────────────
 
-  echo ""
-  info "Hardware detected: ${_GPU_NAME}"
+echo ""
+info "Hardware detected: ${_GPU_NAME}"
+echo ""
+
+if [ "$_GPU_TYPE" = "none" ] || [ "$_VRAM_GB" -lt 4 ]; then
+  # ── CPU-only or very low VRAM ─────────────────────────────────────────────
+  _RECOMMENDED_MODEL="phi4:3.8b"
+  _RECOMMENDED_REASON="CPU-only: best reasoning for RAG without GPU"
+
   info "Recommended model: ${_RECOMMENDED_MODEL}  (${_RECOMMENDED_REASON})"
   echo ""
-  echo "  CPU-optimised models (no GPU required):"
-  echo "    1) phi4-mini       — recommended (~2.5GB)  best CPU quality/speed  ← default"
-  echo "    2) qwen3:0.6b      — ultrafast  (~0.5GB)   lowest RAM, instant replies"
-  echo "    3) gemma3:1b       — tiny       (~0.8GB)   good for quick Q&A"
-  echo "    4) tinyllama:1.1b  — very fast  (~0.7GB)   lightweight"
-  echo "    5) llama3.2:3b     — capable    (~2GB)     general purpose"
-  echo "    6) Custom — enter your own model name"
+  echo "  Available models (optimised for CPU):"
+  echo "    1) qwen3:0.6b      — instant  (~500MB)   quick lookups and routing"
+  echo "    2) gemma3:1b       — very fast (~815MB)  structured explanations"
+  echo "    3) tinyllama:1.1b  — very fast (~638MB)  basic Q&A, coherent chat"
+  echo "    4) phi4:3.8b       — moderate (~2.5GB)   best reasoning for RAG    ← recommended"
+  echo "    5) llama3.2:3b     — moderate (~2GB)     general purpose"
+  echo "    6) mistral:7b      — slow     (~4GB)     strong instruction (needs 12GB+ RAM)"
+  echo "    7) llama3.1:8b     — slow     (~5GB)     balanced quality (needs 16GB+ RAM)"
+  echo "    8) openhermes:7b   — slow     (~4GB)     best formatted RAG (needs 12GB+ RAM)"
+  echo "    9) Custom — enter your own model name"
   echo ""
-  echo "  GPU: ${_GPU_NAME}  |  Press Enter to accept recommended"
-  read -rp "  Choose [1-6] or Enter for recommended (${_RECOMMENDED_MODEL}): " _model_choice
+  echo "  Hardware: ${_GPU_NAME}  |  Press Enter to accept recommended"
+  read -rp "  Choose [1-9] or Enter for recommended (${_RECOMMENDED_MODEL}): " _model_choice
 
   case "$_model_choice" in
-    1) LLM_MODEL="phi4-mini" ;;
-    2) LLM_MODEL="qwen3:0.6b" ;;
-    3) LLM_MODEL="gemma3:1b" ;;
-    4) LLM_MODEL="tinyllama:1.1b" ;;
+    1) LLM_MODEL="qwen3:0.6b" ;;
+    2) LLM_MODEL="gemma3:1b" ;;
+    3) LLM_MODEL="tinyllama:1.1b" ;;
+    4) LLM_MODEL="phi4:3.8b" ;;
     5) LLM_MODEL="llama3.2:3b" ;;
-    6) read -rp "  Enter model name (e.g. qwen3:0.6b): " LLM_MODEL ;;
+    6) LLM_MODEL="mistral:7b" ;;
+    7) LLM_MODEL="llama3.1:8b" ;;
+    8) LLM_MODEL="openhermes:7b-mistral-v2-q4_K_M" ;;
+    9) read -rp "  Enter model name (e.g. gemma3:1b): " LLM_MODEL ;;
     *) LLM_MODEL="$_RECOMMENDED_MODEL" ;;
   esac
 
 else
-  # ── GPU path ───────────────────────────────────────────────────────────────
+  # ── GPU detected ──────────────────────────────────────────────────────────
   if [ "$_VRAM_GB" -ge 24 ]; then
     _RECOMMENDED_MODEL="qwen2.5:32b"
     _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: best quality model"
@@ -990,40 +1000,39 @@ else
     _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: balanced quality/speed"
   elif [ "$_VRAM_GB" -ge 5 ]; then
     _RECOMMENDED_MODEL="mistral:7b"
-    _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: fast with strong reasoning"
+    _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: strong instruction following"
   else
-    _RECOMMENDED_MODEL="phi4-mini"
-    _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: best fit for available VRAM"
+    _RECOMMENDED_MODEL="phi4:3.8b"
+    _RECOMMENDED_REASON="${_VRAM_GB}GB VRAM: best reasoning per GB"
   fi
 
-  echo ""
-  info "Hardware detected: ${_GPU_NAME}"
   info "Recommended model: ${_RECOMMENDED_MODEL}  (${_RECOMMENDED_REASON})"
   echo ""
   echo "  Available models:"
-  echo "    1) phi4-mini         — efficient   (~2.5GB)  strong reasoning, low VRAM"
-  echo "    2) openhermes:7b     — fast        (~4GB)    instruction-tuned, sharp"
-  echo "    3) mistral:7b        — fast        (~4GB)    strong reasoning"
-  echo "    4) llama3.1:8b       — balanced    (~5GB)    recommended for most"
-  echo "    5) mistral-nemo:12b  — better      (~7GB)    needs 12GB+ VRAM"
-  echo "    6) qwen2.5:14b       — excellent   (~9GB)    needs 16GB+ VRAM"
-  echo "    7) qwen2.5:32b       — best quality (~20GB)  needs 24GB+ VRAM"
+  echo "    1) phi4:3.8b         — fast on GPU    (~2.5GB)  best reasoning per GB"
+  echo "    2) mistral:7b        — fast on GPU    (~4GB)    strong instruction following"
+  echo "    3) openhermes:7b     — fast on GPU    (~4GB)    best formatted RAG responses"
+  echo "    4) llama3.1:8b       — fast on GPU    (~5GB)    balanced quality for most"
+  echo "    5) mistral-nemo:12b  — moderate       (~7GB)    better reasoning  (needs 8GB+ VRAM)"
+  echo "    6) qwen2.5:14b       — moderate       (~9GB)    excellent quality (needs 10GB+ VRAM)"
+  echo "    7) qwen2.5:32b       — slower         (~20GB)   best quality      (needs 24GB+ VRAM)"
   echo "    8) Custom — enter your own model name"
   echo ""
-  echo "  GPU: ${_GPU_NAME}  |  Press Enter to accept recommended"
+  echo "  GPU: ${_GPU_NAME} (${_VRAM_GB}GB VRAM)  |  Press Enter to accept recommended"
   read -rp "  Choose [1-8] or Enter for recommended (${_RECOMMENDED_MODEL}): " _model_choice
 
   case "$_model_choice" in
-    1) LLM_MODEL="phi4-mini" ;;
-    2) LLM_MODEL="openhermes:7b" ;;
-    3) LLM_MODEL="mistral:7b" ;;
+    1) LLM_MODEL="phi4:3.8b" ;;
+    2) LLM_MODEL="mistral:7b" ;;
+    3) LLM_MODEL="openhermes:7b-mistral-v2-q4_K_M" ;;
     4) LLM_MODEL="llama3.1:8b" ;;
     5) LLM_MODEL="mistral-nemo:12b" ;;
     6) LLM_MODEL="qwen2.5:14b" ;;
     7) LLM_MODEL="qwen2.5:32b" ;;
-    8) read -rp "  Enter model name (e.g. llama3.2:1b): " LLM_MODEL ;;
+    8) read -rp "  Enter model name (e.g. phi4:3.8b): " LLM_MODEL ;;
     *) LLM_MODEL="$_RECOMMENDED_MODEL" ;;
   esac
+
 fi
 
 success "Selected LLM: ${LLM_MODEL}"

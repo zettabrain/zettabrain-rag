@@ -129,7 +129,7 @@ While inside `zettabrain-chat`:
 | **macOS** | 12 Monterey+ (via `pipx install`) |
 | **Windows** | 10 / 11 via WSL2, or `pipx install` for Python components |
 
-> **RAM depends on model:** `qwen3:0.6b` runs on 2 GB; `phi4-mini` (CPU default) needs ~6 GB; GPU models from `mistral:7b` upward need 8–24 GB VRAM. See the performance table above for per-model requirements.
+> **RAM depends on model:** `qwen3:0.6b` runs on 2 GB; `phi4:3.8b` (CPU default) needs ~6 GB; GPU models from `mistral:7b` upward need 8–24 GB VRAM. See the performance table above for per-model requirements.
 
 ---
 
@@ -143,15 +143,18 @@ Ollama **auto-detects your GPU** on install — NVIDIA (CUDA), AMD (ROCm), and A
 
 ```
 Hardware detected: CPU only
-Recommended model: phi4-mini  (CPU-only: best quality/speed balance for CPU inference)
+Recommended model: phi4:3.8b  (CPU-only: best reasoning for RAG without GPU)
 
-  CPU-optimised models (no GPU required):
-    1) phi4-mini       — recommended (~2.5GB)  best CPU quality/speed  ← default
-    2) qwen3:0.6b      — ultrafast  (~0.5GB)   lowest RAM, instant replies
-    3) gemma3:1b       — tiny       (~0.8GB)   good for quick Q&A
-    4) tinyllama:1.1b  — very fast  (~0.7GB)   lightweight
-    5) llama3.2:3b     — capable    (~2GB)     general purpose
-    6) Custom
+  Available models (optimised for CPU):
+    1) qwen3:0.6b      — instant  (~500MB)   quick lookups and routing
+    2) gemma3:1b       — very fast (~815MB)  structured explanations
+    3) tinyllama:1.1b  — very fast (~638MB)  basic Q&A, coherent chat
+    4) phi4:3.8b       — moderate (~2.5GB)   best reasoning for RAG    ← recommended
+    5) llama3.2:3b     — moderate (~2GB)     general purpose
+    6) mistral:7b      — slow     (~4GB)     strong instruction (needs 12GB+ RAM)
+    7) llama3.1:8b     — slow     (~5GB)     balanced quality (needs 16GB+ RAM)
+    8) openhermes:7b   — slow     (~4GB)     best formatted RAG (needs 12GB+ RAM)
+    9) Custom
 ```
 
 **GPU detected:**
@@ -161,13 +164,13 @@ Hardware detected: NVIDIA GeForce RTX 3080 (10GB VRAM)
 Recommended model: llama3.1:8b  (10GB VRAM: balanced quality/speed)
 
   Available models:
-    1) phi4-mini         — efficient   (~2.5GB)  strong reasoning, low VRAM
-    2) openhermes:7b     — fast        (~4GB)    instruction-tuned, sharp
-    3) mistral:7b        — fast        (~4GB)    strong reasoning
-    4) llama3.1:8b       — balanced    (~5GB)    recommended for most
-    5) mistral-nemo:12b  — better      (~7GB)    needs 12GB+ VRAM
-    6) qwen2.5:14b       — excellent   (~9GB)    needs 16GB+ VRAM
-    7) qwen2.5:32b       — best quality (~20GB)  needs 24GB+ VRAM
+    1) phi4:3.8b         — fast on GPU    (~2.5GB)  best reasoning per GB
+    2) mistral:7b        — fast on GPU    (~4GB)    strong instruction following
+    3) openhermes:7b     — fast on GPU    (~4GB)    best formatted RAG responses
+    4) llama3.1:8b       — fast on GPU    (~5GB)    balanced quality for most
+    5) mistral-nemo:12b  — moderate       (~7GB)    better reasoning  (needs 8GB+ VRAM)
+    6) qwen2.5:14b       — moderate       (~9GB)    excellent quality (needs 10GB+ VRAM)
+    7) qwen2.5:32b       — slower         (~20GB)   best quality      (needs 24GB+ VRAM)
     8) Custom
 ```
 
