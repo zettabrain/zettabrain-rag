@@ -71,6 +71,7 @@ DOCS_FOLDER   = _get("ZETTABRAIN_DOCS",        _get("RAG_DATA_PATH", "/opt/zetta
 CHROMA_PATH   = _get("ZETTABRAIN_CHROMA",       "/opt/zettabrain/src/zettabrain_vectorstore")
 EMBED_MODEL   = _get("ZETTABRAIN_EMBED_MODEL",  "nomic-embed-text")
 LLM_MODEL     = _get("ZETTABRAIN_LLM_MODEL",    "llama3.1:8b")
+
 CHUNK_SIZE    = int(_get("ZETTABRAIN_CHUNK_SIZE",    "1500"))
 CHUNK_OVERLAP = int(_get("ZETTABRAIN_CHUNK_OVERLAP", "200"))
 DEBUG         = False

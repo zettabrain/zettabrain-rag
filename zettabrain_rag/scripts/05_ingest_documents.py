@@ -12,6 +12,8 @@ Usage:
     python 05_ingest_documents.py --clear                # wipe the vector store
 """
 
+from __future__ import annotations
+
 import argparse
 import datetime
 import hashlib
@@ -30,6 +32,12 @@ try:
     _HAS_RETRIEVAL = True
 except ImportError:
     _HAS_RETRIEVAL = False
+
+try:
+    from zettabrain_rag.storage_profile import get_chunk_profile as _get_chunk_profile
+    _HAS_STORAGE_PROFILE = True
+except ImportError:
+    _HAS_STORAGE_PROFILE = False
 
 # -------------------------------------------------------
 # CONFIGURATION
@@ -160,6 +168,17 @@ def load_file(filepath: str):
 
 BATCH_SIZE = 50  # chunks per embedding call
 
+_DEFAULT_PROFILE = {"batch_size": 20, "storage_type": "local"}
+
+
+def _get_storage_profile(docs_path: str) -> dict:
+    if _HAS_STORAGE_PROFILE:
+        try:
+            return _get_chunk_profile(docs_path)
+        except Exception:
+            pass
+    return dict(_DEFAULT_PROFILE)
+
 
 def _adaptive_splitter(filepath: str, docs) -> RecursiveCharacterTextSplitter:
     """Tune chunk size by file type and text density."""
@@ -185,7 +204,7 @@ def _adaptive_splitter(filepath: str, docs) -> RecursiveCharacterTextSplitter:
     )
 
 
-def ingest_file(filepath: str, vectorstore, hash_cache: dict) -> bool:
+def ingest_file(filepath: str, vectorstore, hash_cache: dict, profile: dict | None = None) -> bool:
     """Ingest a single file. Returns True if ingested, False if skipped."""
     filepath = str(Path(filepath).resolve())
     file_hash = get_file_hash(filepath)
@@ -214,9 +233,11 @@ def ingest_file(filepath: str, vectorstore, hash_cache: dict) -> bool:
     # Drop empty chunks that would cause ChromaDB to reject the batch
     chunks = [c for c in chunks if c.page_content.strip()]
 
+    storage_type = (profile or _DEFAULT_PROFILE)["storage_type"]
     for chunk in chunks:
-        chunk.metadata["source"]   = filepath
-        chunk.metadata["filename"] = Path(filepath).name
+        chunk.metadata["source"]       = filepath
+        chunk.metadata["filename"]     = Path(filepath).name
+        chunk.metadata["storage_type"] = storage_type
 
     # Embed in small batches with retry so one Ollama hiccup doesn't abort the file
     added = 0
@@ -293,8 +314,10 @@ def main():
     ingested   = 0
 
     if args.file:
+        profile = _get_storage_profile(str(Path(args.file).parent))
         print(f"\nIngesting file: {args.file}")
-        if ingest_file(args.file, vectorstore, hash_cache):
+        print(f"Storage: {profile['storage_type']}  chunk={profile['chunk_size']}  overlap={profile['chunk_overlap']}")
+        if ingest_file(args.file, vectorstore, hash_cache, profile):
             ingested += 1
 
     else:
@@ -304,17 +327,26 @@ def main():
             print(f"Check the path exists: ls {DOCS_FOLDER}")
             return
 
+        profile = _get_storage_profile(str(folder))
         files = [f for f in folder.rglob("*") if f.suffix.lower() in SUPPORTED]
         print(f"\nFound {len(files)} supported file(s) in {folder}")
+        print(f"Storage: {profile['storage_type']}  chunk={profile['chunk_size']}  overlap={profile['chunk_overlap']}  file-batch={profile['batch_size']}")
 
+        batch_count = 0
         for f in sorted(files):
             try:
-                if ingest_file(str(f), vectorstore, hash_cache):
+                if ingest_file(str(f), vectorstore, hash_cache, profile):
                     ingested += 1
+                    batch_count += 1
             except Exception as e:
                 reason = f"unexpected error: {e}"
                 print(f"  [FAIL] {f.name} — {reason}")
                 log_ingest_error(str(f), reason)
+
+            # Checkpoint hash cache every batch_size files so a crash doesn't
+            # force re-ingestion of already-processed files.
+            if batch_count > 0 and batch_count % profile["batch_size"] == 0:
+                save_hash_cache(hash_cache)
 
     save_hash_cache(hash_cache)
     print(f"\nDone. {ingested} new file(s) ingested.")
