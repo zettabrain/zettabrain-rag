@@ -37,9 +37,7 @@
 
   /* ── Sidebar ──────────────────────────────────── */
   .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
-  .logo { display: flex; align-items: center; gap: 10px; }
-  .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-  .logo-text { font-size: 16px; font-weight: 700; color: var(--text); }
+  .logo { display: flex; flex-direction: column; gap: 4px; }
   .logo-version { font-size: 11px; color: var(--text3); }
 
   .sidebar-section { padding: 16px; border-bottom: 1px solid var(--border); }
@@ -195,11 +193,22 @@
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="logo">
-        <div class="logo-icon">⚡</div>
-        <div>
-          <div class="logo-text">ZettaBrain</div>
-          <div class="logo-version">Private AI v0.5.2</div>
-        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 160" style="width:220px;height:auto;display:block;">
+          <title>ZettaBrain</title>
+          <defs><style>@import url('https://cdn.jsdelivr.net/npm/@fontsource/space-grotesk@5/index.css');</style></defs>
+          <line x1="30" y1="28" x2="118" y2="28" stroke="#818cf8" stroke-width="7" stroke-linecap="round"/>
+          <line x1="118" y1="28" x2="30" y2="132" stroke="#818cf8" stroke-width="7" stroke-linecap="round"/>
+          <line x1="30" y1="132" x2="118" y2="132" stroke="#818cf8" stroke-width="7" stroke-linecap="round"/>
+          <circle cx="30"  cy="28"  r="10" fill="#818cf8"/>
+          <circle cx="118" cy="28"  r="10" fill="#818cf8"/>
+          <circle cx="30"  cy="132" r="10" fill="#818cf8"/>
+          <circle cx="118" cy="132" r="10" fill="#818cf8"/>
+          <circle cx="74"  cy="80"  r="6"  fill="#c7d2fe"/>
+          <text font-family="'Space Grotesk', 'DM Sans', system-ui, sans-serif" font-size="68" letter-spacing="-1" y="110" x="148">
+            <tspan font-weight="300" fill="#e0e7ff">Zetta</tspan><tspan font-weight="700" fill="#818cf8">Brain</tspan>
+          </text>
+        </svg>
+        <div class="logo-version">Private AI · v0.5.30</div>
       </div>
     </div>
 
