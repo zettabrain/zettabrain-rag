@@ -5,6 +5,7 @@
 **Chat with your documents using a fully local AI pipeline — no API keys, no cloud, no data leaving your machine.**
 
 [![PyPI](https://img.shields.io/pypi/v/zettabrain-rag?label=PyPI&color=blue)](https://pypi.org/project/zettabrain-rag/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/zettabrain-rag?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/zettabrain-rag)
 [![Python](https://img.shields.io/pypi/pyversions/zettabrain-rag)](https://pypi.org/project/zettabrain-rag/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)](#system-requirements)
