@@ -64,9 +64,47 @@ def _load_zettabrain_env() -> dict:
 
 _cfg = _load_zettabrain_env()
 
+# config.json is where settings live now, including anything chosen in the web UI. Without
+# reading it here, picking a model in the interface had no effect on the terminal chat.
+_JSON_KEYS = {
+    "ZETTABRAIN_LLM_MODEL": "llm_model",
+    "ZETTABRAIN_EMBED_MODEL": "embed_model",
+    "ZETTABRAIN_DOCS": "docs_folder",
+    "OLLAMA_HOST": "ollama_host",
+}
+
+try:
+    from zettabrain_rag.config import load_config as _load_json_config
+
+    _json_cfg = _load_json_config()
+except Exception:
+    _json_cfg = {}
+
+
 def _get(key: str, fallback: str) -> str:
-    """Get config value: env var overrides file which overrides fallback."""
-    return os.environ.get(key) or _cfg.get(key) or fallback
+    """Config value: environment, then config.json, then zettabrain.env, then the default."""
+    from_json = _json_cfg.get(_JSON_KEYS.get(key, ""), "")
+    return os.environ.get(key) or from_json or _cfg.get(key) or fallback
+
+
+OLLAMA_HOST = _get("OLLAMA_HOST", "http://localhost:11434")
+
+
+def _installed_chat_models() -> list:
+    """Chat models present on this Ollama server, so an error can name real options."""
+    try:
+        import json as _json
+        import urllib.request
+
+        with urllib.request.urlopen(f"{OLLAMA_HOST}/api/tags", timeout=5) as resp:
+            tags = _json.loads(resp.read())
+        names = [m.get("name", "") for m in tags.get("models", [])]
+        # Embedding models cannot answer a question; offering them would send the user in circles.
+        return [n for n in names if n and not any(
+            k in n.lower() for k in ("embed", "bge-", "gte-", "minilm")
+        )]
+    except Exception:
+        return []
 
 DOCS_FOLDER   = _get("ZETTABRAIN_DOCS",        _get("RAG_DATA_PATH", "/opt/zettabrain/data"))
 CHROMA_PATH   = _get("ZETTABRAIN_CHROMA",       "/opt/zettabrain/src/zettabrain_vectorstore")
@@ -278,10 +316,19 @@ def chat(llm, vectorstore):
             # Ending the session on a traceback helps nobody.
             detail = str(exc)
             if "not found" in detail.lower() or "404" in detail:
-                print(f"\n  The model '{LLM_MODEL}' is not installed.")
-                print(f"  Install it with:  ollama pull {LLM_MODEL}")
-                print("  Or choose a smaller one, e.g.:  ollama pull phi4-mini")
-                print(f"  then:  ZETTABRAIN_LLM_MODEL=phi4-mini {sys.argv[0].split('/')[-1]}\n")
+                available = _installed_chat_models()
+                print(f"\n  The model '{LLM_MODEL}' is not installed on {OLLAMA_HOST}.")
+                if available:
+                    # Name what is actually here. Telling someone to pull a model they
+                    # already have is worse than saying nothing.
+                    print("  You already have: " + ", ".join(available))
+                    print(f"  Use one now:      ZETTABRAIN_LLM_MODEL={available[0]} zettabrain-chat")
+                    print(f"  Or set it for good in Settings, or: ollama pull {LLM_MODEL}")
+                else:
+                    print(f"  Install it with:  ollama pull {LLM_MODEL}")
+                    print("  Or a smaller one: ollama pull phi4-mini")
+                    print("  then:             ZETTABRAIN_LLM_MODEL=phi4-mini zettabrain-chat")
+                print()
             else:
                 print(f"\n  Could not get an answer from Ollama: {detail[:300]}\n")
             continue
