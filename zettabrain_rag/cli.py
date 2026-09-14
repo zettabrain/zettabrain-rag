@@ -1,5 +1,10 @@
 """
-ZettaBrain RAG — CLI entry points v0.2.0
+ZettaBrain — CLI entry points.
+
+Every command from 0.5.x is still here and still does what it did. The web server they
+launch is the rewritten one, and the settings it reads are migrated on first run, but the
+command names, their arguments and the systemd unit that calls zettabrain-server are
+unchanged on purpose: an upgrade should not require anyone to relearn the tool.
 """
 
 import argparse
@@ -10,15 +15,14 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .config import CERT_DIR, DEPLOY_DIR, LEGACY_ENV_FILE, migrate_legacy_settings
 
 PKG_DIR     = Path(__file__).parent
 SCRIPTS_DIR = PKG_DIR / "scripts"
 SETUP_SCRIPT        = SCRIPTS_DIR / "setup.sh"
 STORAGE_ADD_SCRIPT  = SCRIPTS_DIR / "storage_add.sh"
 LETSENCRYPT_SCRIPT  = SCRIPTS_DIR / "letsencrypt.sh"
-DEPLOY_DIR  = Path("/opt/zettabrain/src")
-CERT_DIR    = Path("/opt/zettabrain/certs")
-CONFIG_FILE = DEPLOY_DIR / "zettabrain.env"
+CONFIG_FILE = LEGACY_ENV_FILE
 LOCAL_HOSTNAME = "local.zettabrain.app"
 
 DEPLOY_SCRIPTS = [
@@ -32,6 +36,7 @@ DEPLOY_SCRIPTS = [
 _ZB_CMDS = [
     "zettabrain", "zettabrain-setup", "zettabrain-chat", "zettabrain-ingest",
     "zettabrain-server", "zettabrain-status", "zettabrain-storage", "zettabrain-cert",
+    "zettabrain-postinstall", "zettabrain-lite",
 ]
 
 
@@ -63,6 +68,12 @@ def _deploy_scripts():
         DEPLOY_DIR.mkdir(parents=True, exist_ok=True)
     except PermissionError:
         return
+    try:
+        migrated = migrate_legacy_settings()
+        if migrated:
+            print(f"  Carried {len(migrated) - 1} settings forward from your previous install.")
+    except Exception:
+        pass  # never block a command because migration failed
     for name in DEPLOY_SCRIPTS:
         src  = SCRIPTS_DIR / name
         dest = DEPLOY_DIR  / name
@@ -105,6 +116,7 @@ def _find_python() -> str:
 
 
 def _load_config() -> dict:
+    """Read settings from the 0.5.x env file. setup.sh still writes TLS keys there."""
     cfg = {}
     if CONFIG_FILE.exists():
         for line in CONFIG_FILE.read_text(encoding="utf-8").splitlines():

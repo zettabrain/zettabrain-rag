@@ -4,22 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zettabrain-rag"
-version = "0.5.31"
-description = "Private AI document assistant — local RAG pipeline with web GUI. Zero cloud. Supports local, NFS, SMB and object storage."
+version = "1.0.0"
+description = "Private AI document assistant — local RAG and Skills. Chat with your documents and generate accurate business documents from them. Zero cloud required."
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
   { name = "Olajide", email = "olajide@zettabrain.io" }
 ]
-keywords = ["rag", "llm", "langchain", "ollama", "chromadb", "local-ai", "private-ai", "nfs", "smb", "object-storage", "gui", "private", "self-hosted"]
+keywords = ["rag", "llm", "skills", "agent-skills", "ollama", "chromadb", "local-ai", "private-ai", "document-generation", "nfs", "smb", "object-storage", "gui", "private", "self-hosted"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -39,11 +38,20 @@ dependencies = [
   "python-docx>=1.1.0",
   "docx2txt>=0.8",
   "requests>=2.31.0",
+  "httpx>=0.24",
   "fastapi>=0.111.0",
   "uvicorn[standard]>=0.29.0",
+  "python-multipart>=0.0.6",
   "websockets>=12.0",
   "rank-bm25>=0.2.0",
   "flashrank>=0.2.7",
+  "pydantic>=2.0",
+  "sqlmodel>=0.0.14",
+  "python-frontmatter>=1.0",
+  "openpyxl>=3.1",
+  "PyJWT>=2.8",
+  "bcrypt>=4.0",
+  "msal>=1.28",
 ]
 
 [project.optional-dependencies]
@@ -53,6 +61,13 @@ dev = [
   "ruff>=0.4.0",
   "build",
   "twine",
+]
+openai = ["langchain-openai>=0.1", "openai>=1.0"]
+claude = ["langchain-anthropic>=0.1", "anthropic>=0.25"]
+all = [
+  "langchain-openai>=0.1", "openai>=1.0",
+  "langchain-anthropic>=0.1", "anthropic>=0.25",
+  "fpdf2>=2.7",
 ]
 
 [project.scripts]
@@ -65,6 +80,7 @@ zettabrain-storage     = "zettabrain_rag.cli:storage_cmd"
 zettabrain-server      = "zettabrain_rag.cli:server_cmd"
 zettabrain-cert        = "zettabrain_rag.cli:cert_cmd"
 zettabrain-postinstall = "zettabrain_rag.cli:post_install_cmd"
+zettabrain-lite        = "zettabrain_rag.cli:server_cmd"
 
 [project.urls]
 Homepage   = "https://github.com/zettabrain/zettabrain-rag"
@@ -77,6 +93,7 @@ include = ["zettabrain_rag*"]
 
 [tool.setuptools.package-data]
 "zettabrain_rag" = [
+  "skills/*.md",
   "scripts/*.sh",
   "scripts/*.conf",
   "scripts/*.py",

@@ -21,11 +21,31 @@ make release v=0.2.4
 make publish
 ```
 
-There is no test suite. CI (`.github/workflows/ci.yml`) runs `ruff check` and `python -m build` only.
+Tests live in `tests/` and run with `pytest`. `tests/test_upgrade_compat.py` is the one that
+matters most: it asserts that an upgrade from 0.5.x keeps every console script, finds the
+existing vector store, migrates `zettabrain.env`, and leaves authentication off. Do not
+weaken those without a deliberate decision to break existing installs.
 
 ## Architecture overview
 
-This is a Python package (`zettabrain-rag`) that wraps a fully local RAG pipeline: **LangChain + Ollama + ChromaDB**, with no cloud dependencies.
+This is a Python package (`zettabrain-rag`) providing local RAG **and Skills**: chat with your
+documents, and run Skills that generate business documents grounded in them. Built on
+**LangChain + Ollama + ChromaDB**, with no cloud dependency.
+
+Skills are SKILL.md files (YAML frontmatter plus markdown). Where a skill states figures, they
+are looked up from a structured price list in SQLite and computed in Python — never recalled by
+the model. See `generation/` for the engine and `skill_drafter.py` for the creation wizard.
+
+### Upgrade compatibility (1.0.0)
+
+1.0.0 replaced the 0.5.x application while keeping its skin. Three things are load-bearing:
+
+- **All nine console scripts still exist.** The systemd unit written by `setup.sh` calls
+  `zettabrain-server` by name; renaming it breaks every existing install on reboot.
+- **Paths match 0.5.x.** `/opt/zettabrain/src`, the vector store at `zettabrain_vectorstore`,
+  certs at `/opt/zettabrain/certs`. `config.py` reads `zettabrain.env` once and writes
+  `config.json`, without deleting the old file.
+- **Authentication is off by default.** 0.5.x had no login; `auth_enabled` opts in.
 
 ### Entry points → CLI wiring
 

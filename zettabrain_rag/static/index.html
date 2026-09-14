@@ -3,212 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZettaBrain RAG</title>
-<style>
-  /* ── Reset & Base ─────────────────────────────── */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg:        #0f1117;
-    --bg2:       #161b27;
-    --bg3:       #1e2535;
-    --border:    #2a3347;
-    --accent:    #3b82f6;
-    --accent2:   #6366f1;
-    --green:     #22c55e;
-    --red:       #ef4444;
-    --yellow:    #f59e0b;
-    --text:      #e2e8f0;
-    --text2:     #94a3b8;
-    --text3:     #475569;
-    --radius:    10px;
-    --shadow:    0 4px 24px rgba(0,0,0,0.4);
-  }
-
-  html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
-
-  /* ── Layout ───────────────────────────────────── */
-  .app       { display: flex; height: 100vh; overflow: hidden; }
-  .sidebar   { width: 280px; min-width: 280px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
-  .main      { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .topbar    { height: 56px; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
-  .chat-area { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
-  .input-bar { padding: 16px 20px; background: var(--bg2); border-top: 1px solid var(--border); flex-shrink: 0; }
-
-  /* ── Sidebar ──────────────────────────────────── */
-  .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
-  .logo { display: flex; flex-direction: column; gap: 4px; }
-  .logo-version { font-size: 11px; color: var(--text3); }
-
-  .sidebar-section { padding: 16px; border-bottom: 1px solid var(--border); }
-  .sidebar-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 10px; }
-
-  /* Status dots */
-  .status-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
-  .status-label { color: var(--text2); font-size: 13px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .dot.green  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .dot.red    { background: var(--red); }
-  .dot.yellow { background: var(--yellow); }
-
-  /* Stats */
-  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat-card { background: var(--bg3); border-radius: var(--radius); padding: 10px 12px; }
-  .stat-val { font-size: 20px; font-weight: 700; color: var(--accent); line-height: 1; }
-  .stat-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; }
-
-  /* Model selector */
-  .select { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none; }
-  .select:focus { border-color: var(--accent); }
-
-  /* Sources list */
-  .sources-list { list-style: none; display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
-  .sources-list li { font-size: 12px; color: var(--text2); padding: 4px 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sources-list li::before { content: "📄 "; }
-
-  /* Buttons */
-  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 7px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover:not(:disabled) { background: #2563eb; }
-  .btn-ghost   { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
-  .btn-ghost:hover:not(:disabled) { background: var(--border); color: var(--text); }
-  .btn-danger  { background: transparent; color: var(--red); border: 1px solid var(--red); }
-  .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.1); }
-  .btn-sm { padding: 5px 10px; font-size: 12px; }
-  .btn-full { width: 100%; justify-content: center; }
-
-  /* ── Topbar ───────────────────────────────────── */
-  .topbar-title { font-size: 15px; font-weight: 600; flex: 1; }
-  .topbar-actions { display: flex; gap: 8px; }
-  .tab-btn { background: none; border: none; color: var(--text2); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: all 0.15s; }
-  .tab-btn.active, .tab-btn:hover { background: var(--bg3); color: var(--text); }
-
-  /* ── Chat messages ────────────────────────────── */
-  .msg { display: flex; gap: 12px; max-width: 820px; animation: fadeUp 0.2s ease; }
-  .msg.user { flex-direction: row-reverse; margin-left: auto; }
-  .msg-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
-  .msg.user .msg-avatar { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
-  .msg.assistant .msg-avatar { background: var(--bg3); border: 1px solid var(--border); }
-  .msg-body { flex: 1; }
-  .msg-bubble { padding: 12px 16px; border-radius: 12px; line-height: 1.7; }
-  .msg.user .msg-bubble { background: var(--accent); color: #fff; border-radius: 12px 4px 12px 12px; }
-  .msg.assistant .msg-bubble { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px 12px 12px 12px; }
-  .msg-meta { font-size: 11px; color: var(--text3); margin-top: 5px; padding: 0 4px; }
-  .msg.user .msg-meta { text-align: right; }
-
-  /* Source chips */
-  .source-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 3px 9px; border-radius: 20px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
-  .chip:hover { border-color: var(--accent); color: var(--accent); }
-
-  /* Typing cursor */
-  .cursor { display: inline-block; width: 2px; height: 14px; background: var(--accent); margin-left: 2px; animation: blink 0.8s infinite; vertical-align: middle; }
-  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
-
-  /* Welcome screen */
-  .welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; text-align: center; padding: 40px; gap: 16px; color: var(--text2); }
-  .welcome-icon { font-size: 56px; }
-  .welcome h2 { font-size: 22px; font-weight: 700; color: var(--text); }
-  .welcome p { max-width: 400px; line-height: 1.7; }
-  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
-  .suggestion { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); padding: 8px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.15s; }
-  .suggestion:hover { border-color: var(--accent); color: var(--accent); }
-
-  /* ── Input bar ────────────────────────────────── */
-  .input-wrap { display: flex; gap: 10px; align-items: flex-end; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; transition: border-color 0.15s; }
-  .input-wrap:focus-within { border-color: var(--accent); }
-  .chat-input { flex: 1; background: none; border: none; color: var(--text); font-size: 14px; resize: none; outline: none; max-height: 160px; min-height: 24px; line-height: 1.5; font-family: inherit; }
-  .chat-input::placeholder { color: var(--text3); }
-  .send-btn { background: var(--accent); border: none; color: #fff; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; font-size: 16px; }
-  .send-btn:hover:not(:disabled) { background: #2563eb; }
-  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .input-hint { font-size: 11px; color: var(--text3); margin-top: 6px; text-align: right; }
-
-  /* ── Ingest panel ─────────────────────────────── */
-  .panel { display: none; flex-direction: column; height: 100%; }
-  .panel.active { display: flex; }
-  .panel-content { flex: 1; overflow-y: auto; padding: 24px; }
-  .panel-section { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
-  .panel-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
-  .input-field { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 13px; outline: none; font-family: inherit; }
-  .input-field:focus { border-color: var(--accent); }
-  .form-row { display: flex; gap: 10px; align-items: flex-end; }
-  .form-row .input-field { flex: 1; }
-  .checkbox-row { display: flex; align-items: center; gap: 8px; color: var(--text2); font-size: 13px; cursor: pointer; margin-top: 10px; }
-  .checkbox-row input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
-  .log-box { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: 'Courier New', monospace; font-size: 12px; color: var(--green); min-height: 120px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
-  .badge-blue  { background: rgba(59,130,246,0.15); color: var(--accent); }
-
-  /* ── Source modal ─────────────────────────────── */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; width: 90%; max-width: 600px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: var(--shadow); }
-  .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-  .modal-title { font-size: 15px; font-weight: 600; }
-  .modal-close { background: none; border: none; color: var(--text2); font-size: 20px; cursor: pointer; line-height: 1; }
-  .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
-  .source-preview { background: var(--bg3); border-radius: 6px; padding: 12px; font-size: 13px; color: var(--text2); line-height: 1.7; white-space: pre-wrap; }
-
-  /* ── Toast ────────────────────────────────────── */
-  .toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
-  .toast { background: var(--bg2); border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-size: 13px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 8px; animation: slideIn 0.2s ease; min-width: 240px; }
-  .toast.success { border-color: var(--green); }
-  .toast.error   { border-color: var(--red); }
-  @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  @keyframes fadeUp  { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-  /* ── Scrollbar ────────────────────────────────── */
-  ::-webkit-scrollbar { width: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-  /* ── Markdown inside answer bubbles ──────────────── */
-  .msg.assistant .msg-bubble p { margin-bottom: 0.6em; }
-  .msg.assistant .msg-bubble p:last-child { margin-bottom: 0; }
-  .msg.assistant .msg-bubble ul,
-  .msg.assistant .msg-bubble ol { padding-left: 1.4em; margin-bottom: 0.6em; }
-  .msg.assistant .msg-bubble li { margin-bottom: 0.25em; }
-  .msg.assistant .msg-bubble strong { color: var(--text); font-weight: 600; }
-  .msg.assistant .msg-bubble em { font-style: italic; }
-  .msg.assistant .msg-bubble code { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-family: 'Courier New', monospace; font-size: 12px; }
-
-  /* ── Spinner ──────────────────────────────────── */
-  .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ── Responsive ───────────────────────────────── */
-  @media (max-width: 640px) {
-    .sidebar { display: none; }
-  }
-</style>
+<title>ZettaBrain Lite</title>
+<link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
+<!-- Sign-in Overlay -->
+<div class="signin-overlay" id="signin-overlay">
+  <div class="signin-card">
+    <div class="signin-logo">
+      <div class="logo-title">Zetta<span>Brain</span></div>
+      <p>AI-Powered Document Intelligence</p>
+    </div>
+    <div class="signin-body" id="signin-body">
+      <div class="form-group">
+        <label>Username</label>
+        <input class="input-field" id="auth-username" placeholder="Choose a username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input class="input-field" id="auth-password" type="password" placeholder="Choose a password" autocomplete="current-password" onkeydown="if(event.key==='Enter') submitAuth()">
+      </div>
+      <div id="auth-error" style="color:var(--red); font-size:12px; display:none; margin-bottom:8px;"></div>
+      <button class="btn btn-primary btn-full" id="auth-submit-btn" onclick="submitAuth()">Create Account</button>
+      <button class="btn btn-ghost btn-full btn-sm" id="auth-toggle-btn" onclick="toggleAuthMode()" style="margin-top:6px;">Already have an account? Log in</button>
+    </div>
+    <p class="signin-note">Your data stays private. ZettaBrain runs entirely on your infrastructure.</p>
+  </div>
+</div>
+
 <div class="app">
 
-  <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+  <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="logo">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 160" style="width:220px;height:auto;display:block;">
-          <title>ZettaBrain</title>
-          <defs><style>@import url('https://cdn.jsdelivr.net/npm/@fontsource/space-grotesk@5/index.css');</style></defs>
-          <line x1="30" y1="28" x2="118" y2="28" stroke="#818cf8" stroke-width="7" stroke-linecap="round"/>
-          <line x1="118" y1="28" x2="30" y2="132" stroke="#818cf8" stroke-width="7" stroke-linecap="round"/>
-          <line x1="30" y1="132" x2="118" y2="132" stroke="#818cf8" stroke-width="7" stroke-linecap="round"/>
-          <circle cx="30"  cy="28"  r="10" fill="#818cf8"/>
-          <circle cx="118" cy="28"  r="10" fill="#818cf8"/>
-          <circle cx="30"  cy="132" r="10" fill="#818cf8"/>
-          <circle cx="118" cy="132" r="10" fill="#818cf8"/>
-          <circle cx="74"  cy="80"  r="6"  fill="#c7d2fe"/>
-          <text font-family="'Space Grotesk', 'DM Sans', system-ui, sans-serif" font-size="68" letter-spacing="-1" y="110" x="148">
-            <tspan font-weight="300" fill="#e0e7ff">Zetta</tspan><tspan font-weight="700" fill="#818cf8">Brain</tspan>
-          </text>
-        </svg>
-        <div class="logo-version">Private AI · v0.5.30</div>
+        <div class="logo-title">Zetta<span>Brain</span></div>
+        <div class="logo-version">Lite · v0.1.0</div>
       </div>
     </div>
 
@@ -225,7 +56,7 @@
       </div>
       <div class="status-row">
         <span class="status-label">Storage</span>
-        <div class="dot" id="dot-nfs"></div>
+        <div class="dot" id="dot-storage"></div>
       </div>
     </div>
 
@@ -234,11 +65,11 @@
       <div class="sidebar-label">Knowledge Base</div>
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-val" id="stat-chunks">—</div>
+          <div class="stat-val" id="stat-chunks">--</div>
           <div class="stat-lbl">Chunks</div>
         </div>
         <div class="stat-card">
-          <div class="stat-val" id="stat-docs">—</div>
+          <div class="stat-val" id="stat-docs">--</div>
           <div class="stat-lbl">Documents</div>
         </div>
       </div>
@@ -246,77 +77,205 @@
 
     <!-- Model -->
     <div class="sidebar-section">
-      <div class="sidebar-label">LLM Model</div>
+      <div class="sidebar-label">Active Model</div>
       <select class="select" id="model-select">
-        <option value="">Loading models...</option>
+        <option value="">Loading...</option>
       </select>
     </div>
 
-    <!-- Ingested Sources -->
+    <!-- Skills -->
     <div class="sidebar-section" style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
-      <div class="sidebar-label">Ingested Files</div>
-      <ul class="sources-list" id="sources-list">
-        <li style="color:var(--text3); list-style:none;">No files ingested yet</li>
-      </ul>
+      <div class="sidebar-label">Skills</div>
+      <div class="sidebar-skills" id="sidebar-skills">
+        <div style="color:var(--text3); font-size:12px;">No skills loaded</div>
+      </div>
+      <div style="margin-top:8px; display:flex; gap:6px;">
+        <button class="btn btn-primary btn-sm btn-full" onclick="openSkillWizard()">Create Skill</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchTab('skills')">Manage</button>
+      </div>
     </div>
+
+    <!-- Generation History -->
+    <div class="history-section" id="history-section">
+      <div class="history-label">Recent Generations</div>
+      <div id="history-list"></div>
+    </div>
+
+    <!-- User Info -->
+    <div class="user-info" id="user-info"></div>
 
     <!-- Actions -->
     <div style="padding:16px; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--border);">
-      <button class="btn btn-ghost btn-full btn-sm" onclick="refreshStatus()">⟳ Refresh Status</button>
-      <button class="btn btn-danger btn-full btn-sm" onclick="clearVectorStore()">🗑 Clear Vector Store</button>
+      <button class="btn btn-ghost btn-full btn-sm" onclick="refreshStatus()">Refresh Status</button>
+      <button class="btn btn-danger btn-full btn-sm" onclick="clearVectorStore()">Clear Vector Store</button>
     </div>
   </aside>
 
-  <!-- ═══════════════════ MAIN ═══════════════════ -->
+  <!-- MAIN -->
   <div class="main">
 
     <!-- Topbar -->
     <div class="topbar">
-      <div class="topbar-title">ZettaBrain RAG</div>
+      <div class="topbar-title">ZettaBrain Lite</div>
       <div class="topbar-actions">
-        <button class="tab-btn active" id="tab-chat"     onclick="switchTab('chat')">💬 Chat</button>
-        <button class="tab-btn"        id="tab-ingest"   onclick="switchTab('ingest')">📥 Ingest</button>
-        <button class="tab-btn"        id="tab-settings" onclick="switchTab('settings')">⚙️ Settings</button>
+        <button class="tab-btn active" id="tab-chat" onclick="switchTab('chat')">Chat</button>
+        <button class="tab-btn" id="tab-skills" onclick="switchTab('skills')">Skills</button>
+        <button class="tab-btn" id="tab-ingest" onclick="switchTab('ingest')">Ingest</button>
+        <button class="tab-btn" id="tab-storage" onclick="switchTab('storage')">Storage</button>
+        <button class="tab-btn" id="tab-settings" onclick="switchTab('settings')">Settings</button>
+        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">&#9790;</button>
       </div>
     </div>
 
-    <!-- ── CHAT PANEL ── -->
-    <div class="panel active" id="panel-chat" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
-
+    <!-- CHAT PANEL -->
+    <div class="panel active welcome-active" id="panel-chat" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
       <div class="chat-area" id="chat-area">
-        <!-- Welcome -->
         <div class="welcome" id="welcome">
-          <div class="welcome-icon">🧠</div>
-          <h2>Ask anything about your documents</h2>
-          <p>ZettaBrain searches your local knowledge base using AI — completely private, zero cloud.</p>
-          <div class="suggestions" id="suggestions"></div>
+          <div class="welcome-hero">
+            <div class="welcome-glow"></div>
+            <div class="welcome-icon-ring">
+              <div class="welcome-icon">&#129504;</div>
+            </div>
+            <h2 id="welcome-title">Your AI-Powered Document Brain</h2>
+            <p id="welcome-desc">Turn your files into answers, insights, and professional documents — powered by AI, running entirely on your machine.</p>
+          </div>
+          <div class="welcome-stats-bar" id="welcome-stats-bar"></div>
+          <div class="welcome-features" id="welcome-features">
+            <div class="welcome-feature" onclick="document.getElementById('chat-input').focus()">
+              <div class="feature-icon-wrap blue"><span>&#128172;</span></div>
+              <h4>Smart Q&A</h4>
+              <p>Ask anything about your documents. Get precise answers grounded in your actual data — not generic guesses.</p>
+            </div>
+            <div class="welcome-feature" onclick="setChatMode('skill')">
+              <div class="feature-icon-wrap purple"><span>&#128196;</span></div>
+              <h4>Generate Documents</h4>
+              <p>Create proposals, reports, and contracts using your real data and company standards.</p>
+            </div>
+            <div class="welcome-feature">
+              <div class="feature-icon-wrap green"><span>&#128274;</span></div>
+              <h4>Private & Local</h4>
+              <p>Everything runs on your machine. Your files never leave your infrastructure. No cloud required.</p>
+            </div>
+          </div>
+          <div class="welcome-divider"></div>
+          <div class="suggestions-label">Try asking</div>
+          <div class="suggestions" id="suggestions">
+            <div class="suggestion" onclick="sendSuggestion(this)">&#128269; What are the main topics in my documents?</div>
+            <div class="suggestion" onclick="sendSuggestion(this)">&#128203; Summarise the key points across my files</div>
+            <div class="suggestion" onclick="sendSuggestion(this)">&#9889; What can I generate with my skills?</div>
+          </div>
+        </div>
+      </div>
+      <!-- Free API Key Guide (shown when trial exhausted) -->
+      <div class="free-guide" id="free-guide">
+        <h3>Your free trial has ended — here's how to keep going for free</h3>
+        <div class="guide-options">
+          <div class="guide-option">
+            <h4>Groq — Fastest Free Option <span class="guide-badge badge-fast">30 sec setup</span></h4>
+            <p>Free API key, no credit card. Runs Llama 3.1 at 500+ tokens/sec — faster than most paid APIs.</p>
+            <ol class="steps">
+              <li>Go to <a href="https://console.groq.com" target="_blank">console.groq.com</a> and sign up (Google/GitHub login)</li>
+              <li>Click "API Keys" and create one</li>
+              <li>Paste it in <strong>Settings > Cloud Providers > Groq API Key</strong></li>
+              <li>Select a Groq model from the dropdown — done!</li>
+            </ol>
+          </div>
+          <div class="guide-option">
+            <h4>Google Gemini — Free Tier <span class="guide-badge badge-fast">30 sec setup</span></h4>
+            <p>1,500 free requests per day. Great for document generation.</p>
+            <ol class="steps">
+              <li>Go to <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></li>
+              <li>Click "Create API Key"</li>
+              <li>Paste it in <strong>Settings > Cloud Providers > Gemini API Key</strong></li>
+            </ol>
+          </div>
+          <div class="guide-option">
+            <h4>Local Model — Fully Offline, Unlimited <span class="guide-badge badge-offline">5 min setup</span></h4>
+            <p>No internet needed. Your data never leaves your machine.</p>
+            <ol class="steps">
+              <li>Go to <strong>Settings > Pull LLM Model</strong></li>
+              <li>Type <code style="background:var(--bg);padding:1px 5px;border-radius:3px;">phi4-mini</code> (lightweight, works on any hardware) and click Pull</li>
+              <li>For better quality with a GPU: <code style="background:var(--bg);padding:1px 5px;border-radius:3px;">llama3.1:8b</code></li>
+            </ol>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; margin-top:10px;">
+          <button class="btn btn-ghost btn-sm" onclick="downloadGuideAsPDF()">Download as PDF</button>
+          <button class="dismiss-guide" onclick="dismissGuide()">Dismiss <span id="guide-countdown"></span></button>
         </div>
       </div>
 
       <div class="input-bar">
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="mode-chat" onclick="setChatMode('chat')">Chat</button>
+          <button class="mode-btn" id="mode-skill" onclick="setChatMode('skill')">Skill</button>
+        </div>
+        <div class="skill-picker-wrap" id="skill-picker-wrap" style="display:none;">
+          <select class="skill-select" id="skill-select" onchange="onSkillChange()">
+          </select>
+        </div>
         <div class="input-wrap">
           <textarea class="chat-input" id="chat-input" rows="1"
             placeholder="Ask a question about your documents..."
             onkeydown="handleKey(event)"
             oninput="autoResize(this)"></textarea>
-          <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send (Enter)">➤</button>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send (Enter)">&#10148;</button>
+        </div>
+        <div class="gen-settings" id="gen-settings" style="display:none;">
+          <div class="gen-setting">
+            <label for="gen-temp">Temperature</label>
+            <input type="range" id="gen-temp" min="0" max="1" step="0.05" value="0.4"
+              oninput="document.getElementById('gen-temp-val').textContent = this.value">
+            <span id="gen-temp-val" class="gen-setting-val">0.4</span>
+          </div>
+          <div class="gen-setting">
+            <label for="gen-tokens">Max tokens</label>
+            <input type="number" id="gen-tokens" min="256" max="16000" step="256" value="2000" class="gen-tokens-input">
+          </div>
         </div>
         <div class="input-hint">Enter to send · Shift+Enter for new line</div>
       </div>
     </div>
 
-    <!-- ── INGEST PANEL ── -->
+    <!-- SKILLS MANAGEMENT PANEL -->
+    <div class="panel" id="panel-skills">
+      <div class="panel-content">
+        <div class="panel-section">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3>My Skills</h3>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary btn-sm" onclick="openSkillWizard()">Create Skill</button>
+              <button class="btn btn-ghost btn-sm" onclick="showUploadSkillModal()">Upload Skill</button>
+            </div>
+          </div>
+          <p style="color:var(--text2); font-size:13px; margin-bottom:16px;">
+            Create or upload skills for document generation. Select a skill from the dropdown in the Chat tab to use it.
+          </p>
+          <div id="skills-list"></div>
+        </div>
+        <div class="panel-section" style="margin-top:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3>Skill Templates</h3>
+          </div>
+          <p style="color:var(--text2); font-size:13px; margin-bottom:16px;">
+            Pre-built skills you can add to your collection. Enable a template to start using it.
+          </p>
+          <div id="templates-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INGEST PANEL -->
     <div class="panel" id="panel-ingest">
       <div class="panel-content">
-
         <div class="panel-section">
-          <h3>📂 Ingest Documents</h3>
+          <h3>Ingest Documents</h3>
           <p style="color:var(--text2); font-size:13px; margin-bottom:14px;">
             Index documents from your storage into the vector store. Supports PDF, TXT, MD, DOCX.
           </p>
           <div class="form-row">
             <input class="input-field" id="ingest-folder" type="text"
-              placeholder="Folder path (leave blank to use configured storage path)" />
+              placeholder="Folder path (leave blank to use configured storage)" />
             <button class="btn btn-primary" id="ingest-btn" onclick="runIngest()">Start Ingest</button>
           </div>
           <label class="checkbox-row">
@@ -326,39 +285,201 @@
         </div>
 
         <div class="panel-section">
-          <h3>📋 Ingest Log</h3>
+          <h3>Ingest Log</h3>
           <div class="log-box" id="ingest-log">Ready. Click "Start Ingest" to begin.</div>
         </div>
 
         <div class="panel-section">
-          <h3>📊 Vector Store Status</h3>
+          <h3>Vector Store Status</h3>
           <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
             <div class="stat-card">
-              <div class="stat-val" id="ingest-chunks">—</div>
+              <div class="stat-val" id="ingest-chunks">--</div>
               <div class="stat-lbl">Total Chunks</div>
             </div>
             <div class="stat-card">
-              <div class="stat-val" id="ingest-files">—</div>
+              <div class="stat-val" id="ingest-files">--</div>
               <div class="stat-lbl">Source Files</div>
             </div>
             <div class="stat-card">
-              <div class="stat-val" id="ingest-nfs-docs">—</div>
+              <div class="stat-val" id="ingest-docs">--</div>
               <div class="stat-lbl">Documents</div>
             </div>
           </div>
         </div>
 
+        <div class="panel-section">
+          <h3>Ingested Files</h3>
+          <ul class="sources-list" id="sources-list" style="max-height:240px;">
+            <li style="color:var(--text3)">No files ingested yet</li>
+          </ul>
+        </div>
       </div>
     </div>
 
-    <!-- ── SETTINGS PANEL ── -->
-    <div class="panel" id="panel-settings">
+    <!-- STORAGE PANEL -->
+    <div class="panel" id="panel-storage">
       <div class="panel-content">
+        <div class="panel-section">
+          <h3>Configured Storage Sources</h3>
+          <p style="color:var(--text2); font-size:13px; margin-bottom:14px;">
+            Manage document storage locations. ZettaBrain can ingest from local folders, NFS, SMB/CIFS, and S3-compatible storage.
+          </p>
+          <table class="storage-table" id="storage-table">
+            <thead><tr><th>Type</th><th>Label</th><th>Path</th><th>Role</th><th></th></tr></thead>
+            <tbody id="storage-tbody"></tbody>
+          </table>
+        </div>
 
         <div class="panel-section">
-          <h3>🤖 Active LLM Model</h3>
+          <h3>Add Storage Source</h3>
+          <div class="form-group">
+            <label>Storage Type</label>
+            <select class="input-field" id="storage-type" onchange="toggleStorageFields()">
+              <option value="local">Local Folder</option>
+              <option value="nfs">NFS Mount</option>
+              <option value="smb">SMB/CIFS Share</option>
+              <option value="s3">S3-Compatible (FUSE)</option>
+              <option value="onedrive">Microsoft OneDrive</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Label</label>
+            <input class="input-field" id="storage-label" placeholder="e.g. Engineering Docs">
+          </div>
+
+          <!-- Local fields -->
+          <div class="storage-fields active" id="fields-local">
+            <div class="form-group">
+              <label>Folder Path</label>
+              <input class="input-field" id="storage-local-path" placeholder="/home/user/documents">
+            </div>
+          </div>
+
+          <!-- NFS fields -->
+          <div class="storage-fields" id="fields-nfs">
+            <div class="form-group">
+              <label>Server IP Address</label>
+              <input class="input-field" id="storage-nfs-ip" placeholder="192.168.1.100">
+            </div>
+            <div class="form-group">
+              <label>NFS Export Path</label>
+              <input class="input-field" id="storage-nfs-export" placeholder="/exports/documents">
+            </div>
+            <div class="form-group">
+              <label>Local Mount Point</label>
+              <input class="input-field" id="storage-nfs-mount" placeholder="/mnt/nfs-docs">
+            </div>
+            <div class="form-group">
+              <label>NFS Version</label>
+              <select class="input-field" id="storage-nfs-version">
+                <option value="4">NFS v4 (recommended)</option>
+                <option value="3">NFS v3</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- SMB fields -->
+          <div class="storage-fields" id="fields-smb">
+            <div class="form-group">
+              <label>Server IP Address</label>
+              <input class="input-field" id="storage-smb-ip" placeholder="192.168.1.200">
+            </div>
+            <div class="form-group">
+              <label>Share Name</label>
+              <input class="input-field" id="storage-smb-share" placeholder="Documents">
+            </div>
+            <div class="form-group">
+              <label>Username</label>
+              <input class="input-field" id="storage-smb-user" placeholder="guest">
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input class="input-field" id="storage-smb-pass" type="password" placeholder="(leave blank for guest)">
+            </div>
+            <div class="form-group">
+              <label>Domain (optional)</label>
+              <input class="input-field" id="storage-smb-domain" placeholder="WORKGROUP">
+            </div>
+            <div class="form-group">
+              <label>Local Mount Point</label>
+              <input class="input-field" id="storage-smb-mount" placeholder="/mnt/smb-docs">
+            </div>
+          </div>
+
+          <!-- S3 fields -->
+          <div class="storage-fields" id="fields-s3">
+            <div class="form-group">
+              <label>Bucket Name</label>
+              <input class="input-field" id="storage-s3-bucket" placeholder="my-docs-bucket">
+            </div>
+            <div class="form-group">
+              <label>Region</label>
+              <input class="input-field" id="storage-s3-region" placeholder="us-east-1">
+            </div>
+            <div class="form-group">
+              <label>Access Key</label>
+              <input class="input-field" id="storage-s3-key" placeholder="AKIA...">
+            </div>
+            <div class="form-group">
+              <label>Secret Key</label>
+              <input class="input-field" id="storage-s3-secret" type="password" placeholder="">
+            </div>
+            <div class="form-group">
+              <label>Local Mount Point</label>
+              <input class="input-field" id="storage-s3-mount" placeholder="/mnt/s3-docs">
+            </div>
+          </div>
+
+          <!-- OneDrive fields -->
+          <div class="storage-fields" id="fields-onedrive">
+            <div class="form-group">
+              <label>Account Type</label>
+              <select class="input-field" id="storage-onedrive-account-type" onchange="toggleOneDriveMode()">
+                <option value="personal">Personal (Outlook / Hotmail)</option>
+                <option value="work">Work or School</option>
+                <option value="custom">Custom Azure App</option>
+              </select>
+            </div>
+            <div id="onedrive-custom-fields" style="display:none;">
+              <div class="form-group">
+                <label>Microsoft App (Client) ID</label>
+                <input class="input-field" id="storage-onedrive-client-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                <p style="font-size:11px; color:var(--text3); margin-top:4px;">
+                  Create an app at <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps" target="_blank" style="color:var(--accent);">Azure App Registrations</a>. Add "Files.Read.All" permission and enable "Mobile and desktop applications" platform.
+                </p>
+              </div>
+              <div class="form-group">
+                <label>Tenant ID <span style="font-weight:400; color:var(--text3);">(optional, defaults to "common")</span></label>
+                <input class="input-field" id="storage-onedrive-tenant" placeholder="common">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>OneDrive Folder <span style="font-weight:400; color:var(--text3);">(leave blank for root)</span></label>
+              <input class="input-field" id="storage-onedrive-folder" placeholder="Documents/Projects">
+            </div>
+            <div id="onedrive-auth-status" style="margin-bottom:12px; font-size:12px; color:var(--text2);"></div>
+            <div style="display:flex; gap:10px;">
+              <button class="btn btn-primary" onclick="connectOneDrive()">Connect OneDrive</button>
+              <button class="btn btn-ghost" id="onedrive-sync-btn" onclick="syncOneDrive()" style="display:none;">Sync Files</button>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-top:16px;">
+            <button class="btn btn-primary" onclick="addStorage()">Add &amp; Mount</button>
+            <button class="btn btn-ghost" onclick="testStorage()">Test Connection</button>
+          </div>
+          <div id="storage-result" style="margin-top:10px; font-size:12px; color:var(--text2);"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PANEL -->
+    <div class="panel" id="panel-settings">
+      <div class="panel-content">
+        <div class="panel-section">
+          <h3>Active LLM Model</h3>
           <p style="color:var(--text2); font-size:13px; margin-bottom:14px;">
-            Choose which installed model to use for chat. Applied immediately — no restart needed.
+            Choose which model to use for chat. Applied immediately.
           </p>
           <div class="form-row">
             <select class="select input-field" id="settings-model-select" style="flex:1; height:34px;"></select>
@@ -367,31 +488,203 @@
         </div>
 
         <div class="panel-section">
-          <h3>📂 Documents Folder</h3>
+          <h3>Pull LLM Model</h3>
           <p style="color:var(--text2); font-size:13px; margin-bottom:14px;">
-            Set the folder ZettaBrain will scan when you run ingestion.
+            Download a model from <a href="https://ollama.com/library" target="_blank" style="color:var(--accent)">ollama.com/library</a> for chat/generation.
           </p>
           <div class="form-row">
-            <input class="input-field" id="settings-docs-folder" type="text"
-              placeholder="e.g. C:\Users\You\Documents  or  /home/you/docs" />
-            <button class="btn btn-primary" onclick="saveDocsFolder()">Save</button>
+            <input class="input-field" id="pull-llm-name" type="text"
+              placeholder="e.g. llama3.1:8b · mistral:7b · phi4-mini" />
+            <button class="btn btn-primary" id="pull-llm-btn" onclick="pullModel('llm')">Pull</button>
+          </div>
+          <div class="log-box" id="pull-llm-log" style="margin-top:14px; display:none; color:var(--text2);"></div>
+        </div>
+
+        <div class="panel-section">
+          <h3>Pull Embedding Model</h3>
+          <p style="color:var(--text2); font-size:13px; margin-bottom:14px;">
+            Download an embedding model for document ingestion. Default: <code style="color:var(--accent)">nomic-embed-text</code>
+          </p>
+          <div class="form-row">
+            <input class="input-field" id="pull-embed-name" type="text"
+              placeholder="e.g. nomic-embed-text · mxbai-embed-large · all-minilm" />
+            <button class="btn btn-primary" id="pull-embed-btn" onclick="pullModel('embed')">Pull</button>
+          </div>
+          <div class="log-box" id="pull-embed-log" style="margin-top:14px; display:none; color:var(--text2);"></div>
+        </div>
+
+        <div class="panel-section">
+          <h3>Organization</h3>
+          <p style="font-size:12px; color:var(--text3); margin:-6px 0 12px;">
+            These details appear on the documents you generate. Without them, quotes and letters
+            come out with placeholders like "[Your Company Name]".
+          </p>
+          <div class="form-group">
+            <label>Organization Name</label>
+            <input class="input-field" id="set-org-name" placeholder="Petals &amp; Stems Florals Ltd.">
+          </div>
+          <div class="form-group">
+            <label>Address</label>
+            <input class="input-field" id="set-org-address" placeholder="12 Awolowo Road, Ikoyi, Lagos">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input class="input-field" id="set-org-phone" placeholder="0801 234 5678">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input class="input-field" id="set-org-email" placeholder="sales@yourcompany.com">
+          </div>
+          <div class="form-group">
+            <label>Website</label>
+            <input class="input-field" id="set-org-website" placeholder="www.yourcompany.com">
+          </div>
+          <div class="form-group">
+            <label>Registration or Tax ID</label>
+            <input class="input-field" id="set-org-registration" placeholder="RC 1234567 / TIN 0123456789">
+          </div>
+          <div class="form-group">
+            <label>Company Logo</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="file" id="logo-upload" accept="image/*" style="display:none;" onchange="uploadLogo(event)">
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('logo-upload').click()">Upload Logo</button>
+              <span id="logo-status" style="font-size:11px; color:var(--text3);"></span>
+              <img id="logo-preview" src="" style="display:none; height:28px; border-radius:4px; margin-left:8px;">
+            </div>
           </div>
         </div>
 
         <div class="panel-section">
-          <h3>⬇️ Pull a New Model</h3>
-          <p style="color:var(--text2); font-size:13px; margin-bottom:14px;">
-            Download any model from Ollama's library. Browse models at
-            <a href="https://ollama.com/library" target="_blank" style="color:var(--accent)">ollama.com/library</a>.
-          </p>
-          <div class="form-row">
-            <input class="input-field" id="pull-model-name" type="text"
-              placeholder="e.g. llama3.2:3b  ·  mistral:7b  ·  phi3:mini" />
-            <button class="btn btn-primary" id="pull-btn" onclick="pullModel()">Pull</button>
+          <h3>Ollama Configuration</h3>
+          <div class="form-group">
+            <label>Ollama Host URL</label>
+            <input class="input-field" id="set-ollama-host" placeholder="http://localhost:11434">
           </div>
-          <div class="log-box" id="pull-log" style="margin-top:14px; display:none; color:var(--text2);"></div>
+          <div class="form-group">
+            <label>Default Embedding Model</label>
+            <input class="input-field" id="set-embed-model" placeholder="nomic-embed-text">
+          </div>
         </div>
 
+        <div class="panel-section">
+          <h3>Cloud AI Providers</h3>
+          <p style="color:var(--text2); font-size:13px; margin-bottom:14px;">
+            Select a provider, enter your API key, and save. Models from configured providers appear in the model dropdown.
+          </p>
+          <div class="form-group">
+            <label>Provider</label>
+            <select class="input-field" id="cloud-provider-select" onchange="showProviderFields()">
+              <option value="">-- Choose a provider --</option>
+              <option value="gemini">Google Gemini</option>
+              <option value="groq">Groq</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="together">Together AI</option>
+              <option value="cerebras">Cerebras</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="fireworks">Fireworks AI</option>
+            </select>
+          </div>
+          <div id="provider-status-summary" style="margin-bottom:12px; font-size:12px;"></div>
+
+          <div id="provider-fields-gemini" class="provider-fields" style="display:none;">
+            <div class="form-group">
+              <label>Gemini API Key</label>
+              <input class="input-field" id="set-gemini-key" type="password" placeholder="AIza...">
+            </div>
+            <div class="form-group">
+              <label>Model</label>
+              <input class="input-field" id="set-gemini-model" placeholder="gemini-2.0-flash">
+            </div>
+            <div class="provider-status" id="status-gemini"></div>
+          </div>
+
+          <div id="provider-fields-groq" class="provider-fields" style="display:none;">
+            <div class="form-group">
+              <label>Groq API Key</label>
+              <input class="input-field" id="set-groq-key" type="password" placeholder="gsk_...">
+            </div>
+            <div class="form-group">
+              <label>Model</label>
+              <input class="input-field" id="set-groq-model" placeholder="llama-3.1-8b-instant">
+            </div>
+            <div class="provider-status" id="status-groq"></div>
+          </div>
+
+          <div id="provider-fields-openai" class="provider-fields" style="display:none;">
+            <div class="form-group">
+              <label>OpenAI API Key</label>
+              <input class="input-field" id="set-openai-key" type="password" placeholder="sk-...">
+            </div>
+            <div class="form-group">
+              <label>Model</label>
+              <input class="input-field" id="set-openai-model" placeholder="gpt-4o-mini">
+            </div>
+            <div class="provider-status" id="status-openai"></div>
+          </div>
+
+          <div id="provider-fields-anthropic" class="provider-fields" style="display:none;">
+            <div class="form-group">
+              <label>Anthropic API Key</label>
+              <input class="input-field" id="set-anthropic-key" type="password" placeholder="sk-ant-...">
+            </div>
+            <div class="form-group">
+              <label>Model</label>
+              <input class="input-field" id="set-anthropic-model" placeholder="claude-sonnet-4-6">
+            </div>
+            <div class="provider-status" id="status-anthropic"></div>
+          </div>
+
+          <div id="provider-fields-together" class="provider-fields" style="display:none;">
+            <div class="form-group">
+              <label>Together AI API Key</label>
+              <input class="input-field" id="set-together-key" type="password" placeholder="">
+            </div>
+            <div class="form-group">
+              <label>Model</label>
+              <input class="input-field" id="set-together-model" placeholder="meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo">
+            </div>
+            <div class="provider-status" id="status-together"></div>
+          </div>
+
+          <div id="provider-fields-cerebras" class="provider-fields" style="display:none;">
+            <div class="form-group">
+              <label>Cerebras API Key</label>
+              <input class="input-field" id="set-cerebras-key" type="password" placeholder="">
+            </div>
+            <div class="form-group">
+              <label>Model</label>
+              <input class="input-field" id="set-cerebras-model" placeholder="llama3.1-8b">
+            </div>
+            <div class="provider-status" id="status-cerebras"></div>
+          </div>
+
+          <div id="provider-fields-openrouter" class="provider-fields" style="display:none;">
+            <div class="form-group">
+              <label>OpenRouter API Key</label>
+              <input class="input-field" id="set-openrouter-key" type="password" placeholder="">
+            </div>
+            <div class="form-group">
+              <label>Model</label>
+              <input class="input-field" id="set-openrouter-model" placeholder="meta-llama/llama-3.1-8b-instruct:free">
+            </div>
+            <div class="provider-status" id="status-openrouter"></div>
+          </div>
+
+          <div id="provider-fields-fireworks" class="provider-fields" style="display:none;">
+            <div class="form-group">
+              <label>Fireworks AI API Key</label>
+              <input class="input-field" id="set-fireworks-key" type="password" placeholder="">
+            </div>
+            <div class="form-group">
+              <label>Model</label>
+              <input class="input-field" id="set-fireworks-model" placeholder="accounts/fireworks/models/llama-v3p1-8b-instruct">
+            </div>
+            <div class="provider-status" id="status-fireworks"></div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveSettings()" style="margin-top:12px;">Save Settings</button>
+        </div>
       </div>
     </div>
 
@@ -403,7 +696,7 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modal-title">Source</div>
-      <button class="modal-close" onclick="closeModal()">×</button>
+      <button class="modal-close" onclick="closeModal()">&#215;</button>
     </div>
     <div class="modal-body">
       <div class="source-preview" id="modal-body"></div>
@@ -411,584 +704,206 @@
   </div>
 </div>
 
+<!-- Upload Skill Modal -->
+<div class="modal-overlay" id="upload-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Upload Skill</div>
+      <button class="modal-close" onclick="closeUploadModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Choose a skill file (.md)</label>
+        <input type="file" class="input-field" id="upload-file-picker" accept=".md,.markdown,.txt" onchange="handleSkillFileSelect(event)" style="padding:8px;">
+        <p style="font-size:11px; color:var(--text3); margin-top:6px;">Select a Markdown file with YAML frontmatter, or paste content below manually.</p>
+      </div>
+      <div class="form-group">
+        <label>Filename</label>
+        <input class="input-field" id="upload-filename" placeholder="my-skill.md">
+      </div>
+      <div class="form-group">
+        <label>Skill Content (YAML frontmatter + Markdown)</label>
+        <textarea class="input-field" id="upload-content" rows="12" placeholder="---
+name: My Skill
+version: 1.0.0
+description: What this skill does
+---
+
+Instructions for the AI..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="uploadSkill()">Upload</button>
+    </div>
+  </div>
+</div>
+
+<!-- Skill Creation Wizard Modal -->
+<div class="modal-overlay" id="wizard-modal">
+  <div class="modal wizard-modal">
+    <div class="modal-header">
+      <div class="modal-title">Create a New Skill</div>
+      <button class="modal-close" onclick="closeSkillWizard()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- Step indicators -->
+      <div class="wizard-steps">
+        <div class="wizard-step active" id="wiz-step-1"><span class="step-num">1</span> What</div>
+        <div class="wizard-step" id="wiz-step-2"><span class="step-num">2</span> How</div>
+        <div class="wizard-step" id="wiz-step-3"><span class="step-num">3</span> Review</div>
+      </div>
+
+      <!-- Page 1: What document do you want? -->
+      <div class="wizard-page active" id="wiz-page-1">
+        <p style="color:var(--text2); font-size:13px; margin-bottom:16px;">
+          Start from a template or describe your document from scratch.
+        </p>
+        <div class="template-grid" id="wiz-templates">
+          <div class="template-card" onclick="selectTemplate(this, 'proposal')">
+            <div class="template-icon">&#128196;</div>
+            <h4>Proposal</h4>
+            <p>Client proposals, bids, pitches, SOWs</p>
+          </div>
+          <div class="template-card" onclick="selectTemplate(this, 'quote')">
+            <div class="template-icon">&#128178;</div>
+            <h4>Quote</h4>
+            <p>Pricing quotes, estimates, rate breakdowns</p>
+          </div>
+          <div class="template-card" onclick="selectTemplate(this, 'contract')">
+            <div class="template-icon">&#128221;</div>
+            <h4>Contract</h4>
+            <p>Agreements, terms, scope, obligations</p>
+          </div>
+          <div class="template-card" onclick="selectTemplate(this, 'report')">
+            <div class="template-icon">&#128202;</div>
+            <h4>Report</h4>
+            <p>Status reports, weekly updates, assessments</p>
+          </div>
+          <div class="template-card" onclick="selectTemplate(this, 'email')">
+            <div class="template-icon">&#9993;</div>
+            <h4>Email / Letter</h4>
+            <p>Professional emails, cover letters, outreach</p>
+          </div>
+          <div class="template-card" onclick="selectTemplate(this, 'sop')">
+            <div class="template-icon">&#128221;</div>
+            <h4>Procedure / SOP</h4>
+            <p>Standard operating procedures, guides, runbooks</p>
+          </div>
+          <div class="template-card" onclick="selectTemplate(this, 'summary')">
+            <div class="template-icon">&#128203;</div>
+            <h4>Summary / Notes</h4>
+            <p>Meeting notes, executive summaries, briefs</p>
+          </div>
+          <div class="template-card" onclick="selectTemplate(this, 'custom')">
+            <div class="template-icon">&#9999;</div>
+            <h4>Custom</h4>
+            <p>Start from scratch with your own idea</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Name your skill *</label>
+          <input class="input-field" id="wiz-name" placeholder="e.g. Client Proposal, Weekly Status Report, Offer Letter">
+        </div>
+        <div class="form-group">
+          <label>Describe what it should generate *</label>
+          <textarea class="input-field" id="wiz-desc" rows="3" placeholder="Example: Generate a client proposal that includes pricing from our rate card, a project timeline, team allocation, and terms. It should look professional and reference our past work."></textarea>
+          <p style="font-size:11px; color:var(--text3); margin-top:4px;">Write in plain English. The more detail you give, the better the output.</p>
+        </div>
+      </div>
+
+      <!-- Page 2: Options -->
+      <div class="wizard-page" id="wiz-page-2">
+        <div class="form-group">
+          <label>Tone <span style="font-weight:400; color:var(--text3); font-size:11px;">(pick up to 3)</span></label>
+          <div class="tone-options" id="wiz-tones">
+            <div class="tone-chip selected" onclick="selectTone(this)">Professional</div>
+            <div class="tone-chip" onclick="selectTone(this)">Formal</div>
+            <div class="tone-chip" onclick="selectTone(this)">Friendly</div>
+            <div class="tone-chip" onclick="selectTone(this)">Technical</div>
+            <div class="tone-chip" onclick="selectTone(this)">Concise</div>
+            <div class="tone-chip" onclick="selectTone(this)">Persuasive</div>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:14px;">
+          <label>Document length</label>
+          <select class="input-field" id="wiz-maxlen">
+            <option value="1000">Short (~1 page)</option>
+            <option value="2000" selected>Medium (~2 pages)</option>
+            <option value="3000">Long (~3 pages)</option>
+            <option value="4000">Very Long (~4+ pages)</option>
+          </select>
+        </div>
+        <label class="checkbox-row" style="margin-top:14px;">
+          <input type="checkbox" id="wiz-corpus">
+          Use my ingested documents as a data source (pulls real data from your files)
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="wiz-citations">
+          Include source citations in the output
+        </label>
+        <div class="form-group" style="margin-top:14px;">
+          <label>Example document <span style="font-weight:400; color:var(--text3); font-size:11px;">(optional, but one real example is worth more than any other input)</span></label>
+          <div class="example-source-tabs">
+            <button class="example-source-tab active" onclick="switchExampleTab('picker')">From Library</button>
+            <button class="example-source-tab" onclick="switchExampleTab('upload')">Upload File</button>
+            <button class="example-source-tab" onclick="switchExampleTab('paste')">Paste Text</button>
+          </div>
+          <div class="example-source-panel active" id="example-panel-picker">
+            <input class="doc-picker-search" id="doc-picker-search" type="text" placeholder="Search ingested documents..." oninput="filterDocPicker()">
+            <div class="doc-picker-list" id="doc-picker-list">
+              <div class="doc-picker-empty">Loading documents...</div>
+            </div>
+          </div>
+          <div class="example-source-panel" id="example-panel-upload">
+            <div class="example-upload-zone" id="example-upload-zone" onclick="document.getElementById('example-file-input').click()">
+              <div class="upload-icon">&#128206;</div>
+              <p>Click to select files (.pdf, .docx, .txt, .md)</p>
+              <div class="filename" id="example-upload-filename"></div>
+            </div>
+            <input type="file" id="example-file-input" accept=".pdf,.docx,.txt,.md,.doc" multiple style="display:none;" onchange="handleExampleFileUpload(event)">
+          </div>
+          <div class="example-source-panel" id="example-panel-paste">
+            <textarea class="input-field" id="wiz-example" rows="4" placeholder="Paste a real past document here — a proposal you liked, a report that hit the right tone, a template you follow. The AI will match its structure and conventions."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page 3: Review & Save -->
+      <div class="wizard-page" id="wiz-page-3">
+        <div class="wiz-quality-banner" id="wiz-quality-banner"></div>
+        <p style="color:var(--text2); font-size:13px; margin-bottom:14px;">
+          Here's the skill file ZettaBrain will use. You can edit it if you want, or just hit Save.
+        </p>
+        <textarea class="input-field" id="wiz-preview" rows="20" style="font-family:'Courier New',monospace; font-size:12px; line-height:1.6;"></textarea>
+      </div>
+
+      <!-- Navigation -->
+      <div class="wizard-nav">
+        <button class="btn btn-ghost" id="wiz-prev" onclick="wizPrev()" style="visibility:hidden;">Back</button>
+        <button class="btn btn-primary" id="wiz-next" onclick="wizNext()">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Skill Markdown Viewer Modal -->
+<div class="modal-overlay" id="skill-view-modal">
+  <div class="modal wizard-modal">
+    <div class="modal-header">
+      <div class="modal-title" id="skill-view-title">Skill File</div>
+      <button class="modal-close" onclick="closeSkillView()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <textarea class="input-field" id="skill-view-content" rows="24" style="font-family:'Courier New',monospace; font-size:12px; line-height:1.6;" readonly></textarea>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn btn-ghost btn-sm" onclick="copySkillContent()">Copy to Clipboard</button>
+        <button class="btn btn-ghost btn-sm" onclick="downloadSkillFile()">Download .md</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Toasts -->
 <div class="toast-container" id="toasts"></div>
 
-<script>
-// ── State ────────────────────────────────────────────
-let ws = null;
-let isStreaming = false;
-let currentModel = '';
-let status = {};
-let currentSources = [];   // buffered until streaming ends
-let currentAnswer  = '';   // accumulated token text for markdown render
-
-// ── Init ─────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  refreshStatus();
-  connectWS();
-  setInterval(refreshStatus, 30000); // poll every 30s
-});
-
-// ── WebSocket ─────────────────────────────────────────
-function connectWS() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws/chat`);
-
-  ws.onmessage = (e) => {
-    const data = JSON.parse(e.data);
-    handleWSMessage(data);
-  };
-
-  ws.onclose = () => {
-    setTimeout(connectWS, 3000); // auto-reconnect
-  };
-
-  ws.onerror = () => ws.close();
-}
-
-function handleWSMessage(data) {
-  if (data.type === 'sources') {
-    currentSources = data.sources || [];  // buffer — rendered after streaming ends
-  } else if (data.type === 'token') {
-    appendToken(data.token);
-  } else if (data.type === 'done') {
-    finishStreaming(data);
-  } else if (data.type === 'error') {
-    finishStreaming(null);
-    toast(data.message, 'error');
-  }
-}
-
-// ── Status ────────────────────────────────────────────
-async function refreshStatus() {
-  try {
-    const r = await fetch('/api/status');
-    status = await r.json();
-
-    // Dots
-    setDot('dot-ollama', status.ollama.running ? 'green' : 'red');
-    setDot('dot-vector', status.vectorstore.chunks > 0 ? 'green' : status.vectorstore.exists ? 'yellow' : 'red');
-    setDot('dot-nfs', status.storage.configured ? (status.storage.doc_count > 0 ? 'green' : 'yellow') : 'red');
-
-    // Stats
-    document.getElementById('stat-chunks').textContent = fmtNum(status.vectorstore.chunks);
-    document.getElementById('stat-docs').textContent   = fmtNum(status.storage.doc_count);
-    document.getElementById('ingest-chunks').textContent   = fmtNum(status.vectorstore.chunks);
-    document.getElementById('ingest-files').textContent    = fmtNum(status.sources.length);
-    document.getElementById('ingest-nfs-docs').textContent = fmtNum(status.storage.doc_count);
-
-    // Models
-    const sel = document.getElementById('model-select');
-    const prev = sel.value || currentModel;
-    sel.innerHTML = '';
-    if (status.ollama.models.length === 0) {
-      sel.innerHTML = '<option value="">No models found</option>';
-    } else {
-      const activeLlm = (status.ollama && status.ollama.active_llm) || prev;
-      status.ollama.models.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m;
-        opt.textContent = m;
-        if (m === activeLlm || m === prev) opt.selected = true;
-        sel.appendChild(opt);
-      });
-    }
-    currentModel = sel.value;
-
-    // Sources
-    const list = document.getElementById('sources-list');
-    if (status.sources.length === 0) {
-      list.innerHTML = '<li style="color:var(--text3)">No files ingested yet</li>';
-    } else {
-      list.innerHTML = status.sources.map(s => `<li title="${s}">${s}</li>`).join('');
-    }
-
-    // Suggestions — built from actual ingested filenames
-    updateSuggestions(status.sources, status.vectorstore.chunks > 0);
-
-  } catch(e) {
-    setDot('dot-ollama', 'red');
-  }
-}
-
-function updateSuggestions(sources, hasChunks) {
-  const container = document.getElementById('suggestions');
-  if (!container) return;
-
-  if (!sources || sources.length === 0 || !hasChunks) {
-    container.innerHTML = `
-      <div class="suggestion" onclick="sendSuggestion(this)">What are the main topics?</div>
-      <div class="suggestion" onclick="sendSuggestion(this)">Summarise my documents</div>
-      <div class="suggestion" onclick="sendSuggestion(this)">List the key conclusions</div>
-      <div class="suggestion" onclick="sendSuggestion(this)">What are the most important points?</div>
-    `;
-    return;
-  }
-
-  // Build suggestions from actual file names
-  const suggestions = [];
-  const stripExt = n => n.replace(/\.[^.]+$/, '');
-
-  // One "Summarise X" per unique file (up to 2)
-  sources.slice(0, 2).forEach(filename => {
-    const name = stripExt(filename);
-    suggestions.push(`Summarise "${name}"`);
-  });
-
-  // Generic cross-document questions to fill up to 4
-  const generic = [
-    'What are the main topics covered?',
-    'List the key conclusions',
-    'What are the most important points?',
-    'Compare the main themes across documents',
-  ];
-  for (const g of generic) {
-    if (suggestions.length >= 4) break;
-    suggestions.push(g);
-  }
-
-  container.innerHTML = suggestions.map(s =>
-    `<div class="suggestion" onclick="sendSuggestion(this)">${s}</div>`
-  ).join('');
-}
-
-function setDot(id, cls) {
-  const el = document.getElementById(id);
-  el.className = 'dot ' + cls;
-}
-
-function fmtNum(n) {
-  if (n >= 1000) return (n/1000).toFixed(1) + 'k';
-  return String(n);
-}
-
-// ── Chat ──────────────────────────────────────────────
-function handleKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-}
-
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-}
-
-function sendSuggestion(el) {
-  document.getElementById('chat-input').value = el.textContent;
-  sendMessage();
-}
-
-async function sendMessage() {
-  const input = document.getElementById('chat-input');
-  const question = input.value.trim();
-  if (!question || isStreaming) return;
-
-  // Hide welcome
-  const welcome = document.getElementById('welcome');
-  if (welcome) welcome.style.display = 'none';
-
-  input.value = '';
-  input.style.height = 'auto';
-
-  // Render user bubble
-  renderMessage('user', question);
-
-  // Render assistant bubble (empty, will stream into)
-  const assistantId = 'msg-' + Date.now();
-  renderMessage('assistant', '', assistantId);
-
-  // Disable input
-  isStreaming = true;
-  setSendDisabled(true);
-
-  currentModel = document.getElementById('model-select').value;
-
-  // Send via WebSocket
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ question, model: currentModel }));
-  } else {
-    // Fallback to REST if WS not ready
-    try {
-      const r = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, model: currentModel })
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.detail || 'Request failed');
-
-      currentAnswer  = data.answer || '';
-      currentSources = data.sources || [];
-      finishStreaming(data);
-    } catch(e) {
-      const bubble = document.querySelector(`#${assistantId} .msg-bubble`);
-      if (bubble) bubble.textContent = '⚠️ ' + e.message;
-      finishStreaming(null);
-    }
-  }
-}
-
-let currentMsgId = null;
-
-function renderMessage(role, content, id) {
-  const area = document.getElementById('chat-area');
-  const div = document.createElement('div');
-  div.className = `msg ${role}`;
-  if (id) div.id = id;
-
-  const avatar = role === 'user' ? '👤' : '⚡';
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  div.innerHTML = `
-    <div class="msg-avatar">${avatar}</div>
-    <div class="msg-body">
-      <div class="msg-bubble">${content}${role === 'assistant' && !content ? '<span class="cursor"></span>' : ''}</div>
-      ${role === 'assistant' ? `<div class="msg-meta" id="${id ? id+'-meta' : ''}">${time}</div>` : ''}
-    </div>
-  `;
-
-  area.appendChild(div);
-  area.scrollTop = area.scrollHeight;
-
-  if (id) currentMsgId = id;
-  return div;
-}
-
-function appendToken(token) {
-  if (!currentMsgId) return;
-  const bubble = document.querySelector(`#${currentMsgId} .msg-bubble`);
-  if (!bubble) return;
-
-  currentAnswer += token;
-
-  // Remove cursor, update text, restore cursor
-  const cursor = bubble.querySelector('.cursor');
-  if (cursor) cursor.remove();
-  bubble.textContent = currentAnswer;
-  const cur = document.createElement('span');
-  cur.className = 'cursor';
-  bubble.appendChild(cur);
-
-  document.getElementById('chat-area').scrollTop = 999999;
-}
-
-function renderSources(sources, msgId) {
-  if (!sources || sources.length === 0) return;
-  const id = msgId || currentMsgId;
-  if (!id) return;
-
-  // Deduplicate by filename — one chip per unique file
-  const seen = new Set();
-  const unique = sources.filter(s => {
-    if (seen.has(s.filename)) return false;
-    seen.add(s.filename);
-    return true;
-  });
-
-  const label = document.createElement('div');
-  label.style.cssText = 'font-size:11px;color:var(--text3);margin-top:10px;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;';
-  label.textContent = 'Sources';
-
-  const chips = document.createElement('div');
-  chips.className = 'source-chips';
-  unique.forEach(s => {
-    const chip = document.createElement('div');
-    chip.className = 'chip';
-    chip.textContent = '📄 ' + s.filename;
-    chip.onclick = () => showSourceModal(s);
-    chips.appendChild(chip);
-  });
-
-  const bubble = document.querySelector(`#${id} .msg-bubble`);
-  if (bubble) { bubble.after(label); label.after(chips); }
-}
-
-function finishStreaming(data) {
-  isStreaming = false;
-  setSendDisabled(false);
-
-  if (currentMsgId) {
-    const bubble = document.querySelector(`#${currentMsgId} .msg-bubble`);
-    if (bubble) {
-      // Render accumulated answer as markdown HTML
-      bubble.innerHTML = mdToHtml(currentAnswer);
-    }
-
-    // Render deduplicated source chips below the bubble
-    if (currentSources.length > 0) {
-      renderSources(currentSources, currentMsgId);
-    }
-
-    // Add model info + timing to meta
-    if (data && data.model) {
-      const meta = document.getElementById(currentMsgId + '-meta');
-      if (meta) {
-        const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        let timingStr = '';
-        if (data.timing) {
-          const rMs = data.timing.retrieve_ms;
-          const gMs = data.timing.generate_ms;
-          const rStr = rMs >= 1000 ? (rMs/1000).toFixed(1)+'s' : rMs+'ms';
-          const gStr = gMs >= 1000 ? (gMs/1000).toFixed(1)+'s' : gMs+'ms';
-          timingStr = ` · ⚡ ${rStr} retrieve · 🤖 ${gStr} generate`;
-        }
-        meta.textContent = `${ts} · ${data.model} · ${data.chunks_searched || 0} chunks${timingStr}`;
-      }
-    }
-  }
-
-  // Reset per-message state
-  currentAnswer  = '';
-  currentSources = [];
-
-  document.getElementById('chat-input').focus();
-}
-
-function setSendDisabled(disabled) {
-  const btn = document.getElementById('send-btn');
-  const input = document.getElementById('chat-input');
-  btn.disabled = disabled;
-  input.disabled = disabled;
-  btn.innerHTML = disabled ? '<div class="spinner" style="width:16px;height:16px;border-width:2px;border-top-color:#fff"></div>' : '➤';
-}
-
-// ── Markdown renderer (lightweight, no deps) ──────────
-function mdToHtml(text) {
-  if (!text) return '';
-  // Escape HTML entities first
-  let s = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  // Fenced code blocks
-  s = s.replace(/```[\s\S]*?```/g, m => {
-    const inner = m.slice(3, -3).replace(/^\w*\n/, '');
-    return `<pre><code>${inner}</code></pre>`;
-  });
-
-  // Inline code
-  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-  // Bold + italic
-  s = s.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
-  // Unordered lists (lines starting with - or *)
-  s = s.replace(/((?:^[ \t]*[-*][ \t].+\n?)+)/gm, block => {
-    const items = block.trim().split('\n').map(l => `<li>${l.replace(/^[ \t]*[-*][ \t]/, '').trim()}</li>`).join('');
-    return `<ul>${items}</ul>`;
-  });
-
-  // Ordered lists
-  s = s.replace(/((?:^[ \t]*\d+\.[ \t].+\n?)+)/gm, block => {
-    const items = block.trim().split('\n').map(l => `<li>${l.replace(/^[ \t]*\d+\.[ \t]/, '').trim()}</li>`).join('');
-    return `<ol>${items}</ol>`;
-  });
-
-  // Paragraphs — wrap double-newline-separated blocks not already wrapped in tags
-  s = s.split(/\n{2,}/).map(para => {
-    para = para.trim();
-    if (!para) return '';
-    if (/^<(ul|ol|pre|li)/.test(para)) return para;
-    return `<p>${para.replace(/\n/g, '<br>')}</p>`;
-  }).join('');
-
-  return s;
-}
-
-// ── Ingest ────────────────────────────────────────────
-async function runIngest() {
-  const folder   = document.getElementById('ingest-folder').value.trim() || null;
-  const rebuild  = document.getElementById('ingest-rebuild').checked;
-  const btn      = document.getElementById('ingest-btn');
-  const log      = document.getElementById('ingest-log');
-
-  btn.disabled = true;
-  btn.textContent = 'Ingesting...';
-  log.textContent = `Starting ingestion${folder ? ' from ' + folder : ''}...\n`;
-
-  try {
-    const r = await fetch('/api/ingest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder, rebuild })
-    });
-    const data = await r.json();
-
-    if (!r.ok) {
-      log.textContent += '\n❌ Server error:\n' + (data.detail || r.statusText);
-      toast('Ingestion failed', 'error');
-    } else if (data.success) {
-      log.textContent += data.output || 'Done.';
-      log.textContent += `\n\n✓ Ingestion complete. Vector store now has ${data.chunks} chunks.`;
-      toast('Ingestion complete!', 'success');
-    } else {
-      log.textContent += '\n❌ Error:\n' + (data.error || 'Unknown error');
-      toast('Ingestion failed', 'error');
-    }
-
-    refreshStatus();
-  } catch(e) {
-    log.textContent += '\n❌ ' + e.message;
-    toast('Request failed', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Start Ingest';
-    log.scrollTop = log.scrollHeight;
-  }
-}
-
-// ── Vector store ──────────────────────────────────────
-async function clearVectorStore() {
-  if (!confirm('Clear the entire vector store? You will need to re-ingest all documents.')) return;
-
-  try {
-    const r = await fetch('/api/vectorstore', { method: 'DELETE' });
-    const data = await r.json();
-    toast(data.message, 'success');
-    refreshStatus();
-  } catch(e) {
-    toast('Failed to clear vector store', 'error');
-  }
-}
-
-// ── Source Modal ──────────────────────────────────────
-function showSourceModal(source) {
-  document.getElementById('modal-title').textContent = source.filename + (source.page ? ` — Page ${source.page}` : '');
-  document.getElementById('modal-body').textContent  = source.preview + '\n\n[Preview limited to 200 characters]';
-  document.getElementById('source-modal').classList.add('open');
-}
-
-function closeModal() {
-  document.getElementById('source-modal').classList.remove('open');
-}
-
-document.getElementById('source-modal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeModal();
-});
-
-// ── Tabs ──────────────────────────────────────────────
-function switchTab(tab) {
-  ['chat', 'ingest', 'settings'].forEach(t => {
-    const panel = document.getElementById(`panel-${t}`);
-    const btn   = document.getElementById(`tab-${t}`);
-    if (panel) { panel.style.display = t === tab ? 'flex' : 'none'; panel.classList.toggle('active', t === tab); }
-    if (btn)   btn.classList.toggle('active', t === tab);
-  });
-  if (tab === 'ingest')   refreshStatus();
-  if (tab === 'settings') { refreshStatus().then(populateSettingsPanel); }
-}
-
-// ── Settings ──────────────────────────────────────────
-function populateSettingsPanel() {
-  const sel = document.getElementById('settings-model-select');
-  sel.innerHTML = '';
-  const models = (status.ollama && status.ollama.models) ? status.ollama.models : [];
-  const active = (status.ollama && status.ollama.active_llm) ? status.ollama.active_llm : currentModel;
-  if (models.length === 0) {
-    sel.innerHTML = '<option value="">No models installed</option>';
-  } else {
-    models.forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m; opt.textContent = m;
-      if (m === active) opt.selected = true;
-      sel.appendChild(opt);
-    });
-  }
-  if (status.storage && status.storage.path) {
-    const folderEl = document.getElementById('settings-docs-folder');
-    if (!folderEl.value) folderEl.value = status.storage.path;
-  }
-}
-
-async function applyModel() {
-  const model = document.getElementById('settings-model-select').value;
-  if (!model) { toast('Select a model first', 'error'); return; }
-  try {
-    const r = await fetch('/api/settings', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ llm_model: model })
-    });
-    const data = await r.json();
-    if (data.success) {
-      currentModel = model;
-      const sidebarSel = document.getElementById('model-select');
-      if (sidebarSel) { sidebarSel.value = model; }
-      toast(`LLM model set to ${model}`, 'success');
-    } else {
-      toast('Failed to apply model', 'error');
-    }
-  } catch(e) { toast('Request failed: ' + e.message, 'error'); }
-}
-
-async function saveDocsFolder() {
-  const folder = document.getElementById('settings-docs-folder').value.trim();
-  if (!folder) { toast('Enter a folder path', 'error'); return; }
-  try {
-    const r = await fetch('/api/settings', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ docs_folder: folder })
-    });
-    const data = await r.json();
-    if (data.success) {
-      toast('Documents folder saved', 'success');
-      refreshStatus();
-    } else {
-      toast('Failed to save folder', 'error');
-    }
-  } catch(e) { toast('Request failed: ' + e.message, 'error'); }
-}
-
-async function pullModel() {
-  const modelName = document.getElementById('pull-model-name').value.trim();
-  if (!modelName) { toast('Enter a model name', 'error'); return; }
-  const btn = document.getElementById('pull-btn');
-  const log = document.getElementById('pull-log');
-  btn.disabled = true; btn.textContent = 'Pulling...';
-  log.style.display = 'block';
-  log.textContent = `Pulling ${modelName}...\n`;
-  try {
-    const r = await fetch('/api/pull', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: modelName })
-    });
-    if (!r.ok) { throw new Error(`Server error ${r.status}`); }
-    const reader = r.body.getReader();
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      log.textContent += decoder.decode(value, { stream: true });
-      log.scrollTop = log.scrollHeight;
-    }
-    log.textContent += '\n✓ Done.';
-    toast(`${modelName} pulled successfully`, 'success');
-    await refreshStatus();
-    populateSettingsPanel();
-  } catch(e) {
-    log.textContent += '\n❌ ' + e.message;
-    toast('Pull failed', 'error');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Pull';
-    log.scrollTop = log.scrollHeight;
-  }
-}
-
-// ── Toasts ────────────────────────────────────────────
-function toast(msg, type = 'info') {
-  const container = document.getElementById('toasts');
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
-  el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
-  container.appendChild(el);
-  setTimeout(() => el.remove(), 4000);
-}
-</script>
+<script src="/static/app.js"></script>
 </body>
 </html>

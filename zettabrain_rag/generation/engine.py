@@ -1,0 +1,503 @@
+"""Document generation engine — skill-based generation with optional corpus grounding."""
+
+import logging
+import time
+import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from ..llm.base import LLMProvider
+from ..llm.factory import create_generation_provider
+from .models import GenerationRequest, GenerationResult, Skill
+
+logger = logging.getLogger(__name__)
+
+# Fields describing the organisation sending the document. Without these the model writes
+# "[Your Company Name]" into a quote a customer is meant to receive.
+BUSINESS_FIELDS = ("org_name", "org_address", "org_phone", "org_email", "org_website", "org_registration")
+_BUSINESS_LABELS = {
+    "org_name": "Name",
+    "org_address": "Address",
+    "org_phone": "Phone",
+    "org_email": "Email",
+    "org_website": "Website",
+    "org_registration": "Registration / tax ID",
+}
+
+
+# Corpus text sent to the FORMAT step is for boilerplate only — terms, conditions, contact
+# details. Every figure already arrives in the computed block, so a large excerpt buys nothing
+# and costs context a small local model does not have.
+_FORMAT_CORPUS_CHARS = 2000
+
+# Above roughly this size a prompt will not fit a 2048-token window, and Ollama truncates
+# silently from the front rather than failing.
+_SMALL_CONTEXT_TOKENS = 1900
+
+
+def _warn_if_prompt_is_large(prompt: str, warnings: List[str]) -> None:
+    from .pipeline import estimate_tokens  # noqa: PLC0415
+
+    tokens = estimate_tokens(prompt)
+    if tokens > _SMALL_CONTEXT_TOKENS:
+        logger.info("Format prompt is roughly %d tokens", tokens)
+        warnings.append(
+            f"This request needed about {tokens:,} tokens of instructions. Models with a small "
+            "context window will silently drop part of it, which can lose sections of the "
+            "document. If the result looks incomplete, shorten the skill's instructions or use "
+            "a model with a larger context."
+        )
+
+
+def _business_identity() -> str:
+    """Render the configured organisation details for a prompt, or '' when unset."""
+    try:
+        from ..config import get_setting  # noqa: PLC0415
+
+        lines = []
+        for field in BUSINESS_FIELDS:
+            value = get_setting(field)
+            if value:
+                lines.append(f"{_BUSINESS_LABELS[field]}: {value}")
+        return "\n".join(lines)
+    except Exception:
+        logger.debug("Could not read business identity settings", exc_info=True)
+        return ""
+
+
+class GenerationEngine:
+    def __init__(
+        self,
+        llm_provider: Optional[LLMProvider] = None,
+        corpus_retriever=None,
+    ):
+        self.llm_provider = llm_provider or create_generation_provider()
+        self._corpus_retriever = corpus_retriever
+
+    @property
+    def corpus_retriever(self):
+        return self._corpus_retriever
+
+    @corpus_retriever.setter
+    def corpus_retriever(self, retriever):
+        self._corpus_retriever = retriever
+
+    def build_prompt(
+        self,
+        skill: Skill,
+        user_input: str,
+        context: Optional[Dict[str, Any]] = None,
+        corpus_context: Optional[str] = None,
+    ) -> str:
+        prompt_parts = []
+
+        prompt_parts.append("You are an AI assistant that follows instructions precisely.")
+        prompt_parts.append("Your task is to generate a document based on the instructions below.")
+        prompt_parts.append("")
+
+        now = datetime.now()
+        prompt_parts.append(f"Today's date is {now.strftime('%B %d, %Y')}.")
+        prompt_parts.append(
+            "Use this date as the current date for any dates in the document (e.g. proposal date, quote date, effective date). Never invent or use a different date."
+        )
+        prompt_parts.append("")
+
+        identity = _business_identity()
+        if identity:
+            prompt_parts.append("# YOUR ORGANISATION (the sender of this document)")
+            prompt_parts.append(identity)
+            prompt_parts.append("")
+
+        prompt_parts.append("# TASK INSTRUCTIONS")
+        prompt_parts.append(skill.instructions)
+        prompt_parts.append("")
+
+        if corpus_context:
+            prompt_parts.append(corpus_context)
+            prompt_parts.append("")
+            prompt_parts.append(
+                "IMPORTANT: The CORPUS DOCUMENTS above are authoritative source material retrieved from "
+                "the user's knowledge base. Use the exact figures, rates, terms, and rules found in these "
+                "documents. Do not mark data from these sources as 'DRAFT', 'ESTIMATED', or 'PRELIMINARY'. "
+                "If the corpus provides a specific number, use that number exactly."
+            )
+            prompt_parts.append("")
+
+        if context:
+            prompt_parts.append("# CONTEXT")
+            prompt_parts.append("The following context information should inform your response:")
+            prompt_parts.append("")
+            for key, value in context.items():
+                prompt_parts.append(f"## {key}")
+                prompt_parts.append(str(value))
+                prompt_parts.append("")
+
+        prompt_parts.append("# USER REQUEST")
+        prompt_parts.append(user_input)
+        prompt_parts.append("")
+
+        prompt_parts.append("# OUTPUT INSTRUCTIONS")
+        prompt_parts.append("Generate the requested document following the task instructions above.")
+        prompt_parts.append(
+            "The task instructions are written for you, not for the reader. Sections such as "
+            "Retrieval Order, Rules, Boundaries, Self-Check, Style, Abstention, Source Documents "
+            "and Gaps describe how to do the work — never reproduce them, or their contents, as "
+            "sections of the document."
+        )
+        prompt_parts.append(
+            "IMPORTANT: Always produce the document — never refuse the request. "
+            "But never invent a figure to fill a gap. If a number, rate, date, name, or amount is not "
+            "available from the corpus or the user request, write [NEEDS INPUT] in its place and continue. "
+            "A document with [NEEDS INPUT] markers is correct and useful; a document with an invented "
+            "figure is not. Do not estimate, approximate, or carry a number over from a similar item."
+        )
+
+        if skill.citation_required and corpus_context:
+            prompt_parts.append("Include citations to source documents where applicable.")
+
+        prompt_parts.append("")
+        prompt_parts.append("Begin your response now:")
+
+        return "\n".join(prompt_parts)
+
+    def generate(self, skill: Skill, request: GenerationRequest) -> GenerationResult:
+        start_time = time.time()
+
+        try:
+            corpus_context = None
+            citations: List[str] = []
+            retrieval_warnings: List[str] = []
+
+            if self._corpus_retriever:
+                corpus_text, citation_objects = self._corpus_retriever.get_context_for_generation(
+                    query=request.input,
+                    n_results=5,
+                    min_relevance=0.3,
+                )
+                if corpus_text:
+                    corpus_context = corpus_text
+                    citations = [
+                        f"{c.document_title}" + (f" ({c.citation_ref})" if c.citation_ref else "")
+                        for c in citation_objects
+                    ]
+                if hasattr(self._corpus_retriever, "retrieval_warnings"):
+                    retrieval_warnings = self._corpus_retriever.retrieval_warnings
+
+            temperature = request.temperature if request.temperature is not None else skill.temperature
+            max_tokens = request.max_tokens if request.max_tokens is not None else skill.max_tokens
+
+            from ..price_list import has_price_data  # noqa: PLC0415
+
+            source_files = skill.source_documents or []
+            price_db_available = has_price_data(source_files if source_files else None)
+            use_pipeline = skill.deterministic and (corpus_context is not None or price_db_available)
+
+            if use_pipeline:
+                result = self._generate_deterministic(
+                    skill,
+                    request,
+                    corpus_context,
+                    citations,
+                    retrieval_warnings,
+                    temperature,
+                    max_tokens,
+                    start_time,
+                    price_db_available=price_db_available,
+                    source_files=source_files,
+                )
+            else:
+                if skill.deterministic and corpus_context is None:
+                    retrieval_warnings.append(
+                        "This skill requires corpus documents for accurate results. "
+                        "Upload the required documents and re-ingest."
+                    )
+                result = self._generate_single_shot(
+                    skill, request, corpus_context, citations, retrieval_warnings, temperature, max_tokens, start_time
+                )
+
+            return result
+
+        except Exception as e:
+            generation_time_ms = int((time.time() - start_time) * 1000)
+            return GenerationResult(
+                id=str(uuid.uuid4()),
+                skill_name=skill.name,
+                skill_version=skill.version,
+                content="",
+                metadata={"input": request.input},
+                success=False,
+                error=str(e),
+                generation_time_ms=generation_time_ms,
+            )
+
+    def _generate_single_shot(
+        self,
+        skill: Skill,
+        request: GenerationRequest,
+        corpus_context: Optional[str],
+        citations: List[str],
+        warnings: List[str],
+        temperature: float,
+        max_tokens: int,
+        start_time: float,
+    ) -> GenerationResult:
+        prompt = self.build_prompt(skill, request.input, request.context, corpus_context)
+        content = self.llm_provider.generate(prompt=prompt, temperature=temperature, max_tokens=max_tokens)
+        generation_time_ms = int((time.time() - start_time) * 1000)
+
+        return GenerationResult(
+            id=str(uuid.uuid4()),
+            skill_name=skill.name,
+            skill_version=skill.version,
+            content=content,
+            metadata={
+                "input": request.input,
+                "context_keys": list(request.context.keys()) if request.context else [],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "model": getattr(self.llm_provider, "model", "unknown"),
+                "corpus_used": corpus_context is not None,
+                "pipeline": "single-shot",
+            },
+            created_at=datetime.now(),
+            success=True,
+            generation_time_ms=generation_time_ms,
+            citations=citations,
+            warnings=warnings,
+        )
+
+    def _generate_deterministic(
+        self,
+        skill: Skill,
+        request: GenerationRequest,
+        corpus_context: Optional[str],
+        citations: List[str],
+        retrieval_warnings: List[str],
+        temperature: float,
+        max_tokens: int,
+        start_time: float,
+        price_db_available: bool = False,
+        source_files: Optional[List[str]] = None,
+    ) -> GenerationResult:
+        from decimal import Decimal as _Dec
+
+        from .pipeline import (
+            TaxSpec,
+            build_extraction_prompt,
+            build_format_prompt,
+            build_identify_prompt,
+            build_repair_prompt,
+            compute_totals,
+            lookup_prices_from_db,
+            parse_extraction,
+            parse_identification,
+            validate_against_corpus,
+        )
+
+        warnings = list(retrieval_warnings)
+        pipeline_mode = "identify-lookup-compute-format" if price_db_available else "extract-compute-format"
+
+        if price_db_available:
+            # ── STEP 1: IDENTIFY (what was ordered — no price extraction) ──
+            identify_prompt = build_identify_prompt(request.input)
+            raw_identify = self.llm_provider.generate(
+                prompt=identify_prompt, temperature=0.0, max_tokens=1000
+            )
+            identified = parse_identification(raw_identify)
+
+            if identified is None:
+                # This is a quality cliff, not a detail: prices will now come from document
+                # text instead of the price list. The user must be told, or a degraded answer
+                # is indistinguishable from a good one.
+                logger.warning("Identify step failed, falling back to corpus extraction")
+                warnings.append(
+                    "This model could not read the order reliably, so prices were taken from "
+                    "your documents instead of your price list. Check every figure before "
+                    "sending. A larger model, or one of the cloud models in Settings, will "
+                    "give more accurate results."
+                )
+                price_db_available = False  # drop to corpus path below
+
+            if identified is not None:
+                # ── STEP 2: LOOKUP (prices from DB — no LLM) ──
+                extracted, db_warnings = lookup_prices_from_db(identified, source_files)
+                warnings.extend(db_warnings)
+
+                # Propagate skill currency as fallback if DB rows had no currency stored
+                if not extracted.currency and skill.currency:
+                    extracted.currency = skill.currency
+
+                # Tax comes from the skill first, then from the price list itself. Reading the
+                # price list matters: a skill created without a tax rate used to produce a
+                # quote with no tax at all, silently, even though the rate was sitting in the
+                # user's own file.
+                if not extracted.taxes:
+                    if skill.tax_rate > 0:
+                        extracted.taxes.append(
+                            TaxSpec(
+                                description=skill.tax_name or "Tax",
+                                rate_percent=_Dec(str(skill.tax_rate)),
+                                source_ref="skill configuration",
+                            )
+                        )
+                    else:
+                        from ..price_list import get_tax_setting  # noqa: PLC0415
+
+                        from_file = None
+                        for source in source_files or [""]:
+                            from_file = get_tax_setting(source)
+                            if from_file:
+                                break
+                        if from_file:
+                            extracted.taxes.append(
+                                TaxSpec(
+                                    description=from_file["name"],
+                                    rate_percent=_Dec(str(from_file["rate"])),
+                                    source_ref="price list",
+                                )
+                            )
+                        else:
+                            warnings.append(
+                                "No tax rate is set for this skill and none was found in the "
+                                "price list, so the total excludes tax. Add the rate to your "
+                                "price list, or set it on the skill."
+                            )
+
+                if not extracted.line_items:
+                    warnings.append(
+                        "No products matched the price list. "
+                        "Check that product names in the request match the price list, then re-ingest."
+                    )
+                    return self._generate_single_shot(
+                        skill, request, corpus_context, citations, warnings, temperature, max_tokens, start_time
+                    )
+
+                # ── STEP 3: COMPUTE ──
+                computed = compute_totals(extracted)
+
+                # ── STEP 4: FORMAT ──
+                format_prompt = build_format_prompt(
+                    skill_instructions=skill.instructions,
+                    corpus_context=corpus_context or "",
+                    user_input=request.input,
+                    computed=computed,
+                    business_identity=_business_identity(),
+                    max_corpus_chars=_FORMAT_CORPUS_CHARS,
+                )
+                _warn_if_prompt_is_large(format_prompt, warnings)
+                content = self.llm_provider.generate(
+                    prompt=format_prompt, temperature=temperature, max_tokens=max_tokens
+                )
+
+                generation_time_ms = int((time.time() - start_time) * 1000)
+                return GenerationResult(
+                    id=str(uuid.uuid4()),
+                    skill_name=skill.name,
+                    skill_version=skill.version,
+                    content=content,
+                    metadata={
+                        "input": request.input,
+                        "pipeline": pipeline_mode,
+                        "grand_total": str(computed.grand_total),
+                        "computation_log": computed.computation_log,
+                        "price_source": "database",
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                        "model": getattr(self.llm_provider, "model", "unknown"),
+                        "corpus_used": corpus_context is not None,
+                    },
+                    created_at=datetime.now(),
+                    success=True,
+                    generation_time_ms=generation_time_ms,
+                    citations=citations,
+                    warnings=warnings,
+                )
+
+        # ── Corpus extraction path (no price DB) ──────────────────────────────
+        if corpus_context is None:
+            warnings.append(
+                "Could not extract structured pricing data. "
+                "Used standard generation instead — verify all calculations manually."
+            )
+            return self._generate_single_shot(
+                skill, request, corpus_context, citations, warnings, temperature, max_tokens, start_time
+            )
+
+        # ── STEP 1: EXTRACT (from corpus text) ──
+        extraction_prompt = build_extraction_prompt(
+            corpus_context=corpus_context,
+            user_input=request.input,
+        )
+        raw_extraction = self.llm_provider.generate(
+            prompt=extraction_prompt, temperature=0.0, max_tokens=max_tokens
+        )
+
+        extracted = parse_extraction(raw_extraction)
+
+        if extracted is None:
+            logger.info("Extraction failed, attempting repair")
+            repair_prompt = build_repair_prompt(raw_extraction)
+            raw_retry = self.llm_provider.generate(
+                prompt=repair_prompt, temperature=0.0, max_tokens=max_tokens
+            )
+            extracted = parse_extraction(raw_retry)
+
+        if extracted is None:
+            logger.warning("Extraction failed after retry, falling back to single-shot")
+            warnings.append(
+                "Could not extract structured pricing data. "
+                "Used standard generation instead — verify all calculations manually."
+            )
+            return self._generate_single_shot(
+                skill, request, corpus_context, citations, warnings, temperature, max_tokens, start_time
+            )
+
+        corpus_warnings = validate_against_corpus(extracted, corpus_context)
+        warnings.extend(corpus_warnings)
+
+        # Propagate skill currency so computed summary uses the right symbol
+        if not extracted.currency and skill.currency:
+            extracted.currency = skill.currency
+
+        # ── STEP 2: COMPUTE ──
+        computed = compute_totals(extracted)
+
+        # ── STEP 3: FORMAT ──
+        format_prompt = build_format_prompt(
+            skill_instructions=skill.instructions,
+            corpus_context=corpus_context,
+            user_input=request.input,
+            computed=computed,
+            business_identity=_business_identity(),
+            max_corpus_chars=_FORMAT_CORPUS_CHARS,
+        )
+        _warn_if_prompt_is_large(format_prompt, warnings)
+        content = self.llm_provider.generate(
+            prompt=format_prompt, temperature=temperature, max_tokens=max_tokens
+        )
+
+        generation_time_ms = int((time.time() - start_time) * 1000)
+
+        return GenerationResult(
+            id=str(uuid.uuid4()),
+            skill_name=skill.name,
+            skill_version=skill.version,
+            content=content,
+            metadata={
+                "input": request.input,
+                "pipeline": "extract-compute-format",
+                "grand_total": str(computed.grand_total),
+                "computation_log": computed.computation_log,
+                "extraction_warnings": corpus_warnings,
+                "price_source": "corpus",
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "model": getattr(self.llm_provider, "model", "unknown"),
+                "corpus_used": True,
+            },
+            created_at=datetime.now(),
+            success=True,
+            generation_time_ms=generation_time_ms,
+            citations=citations,
+            warnings=warnings,
+        )

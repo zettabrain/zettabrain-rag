@@ -1,0 +1,13 @@
+target-version = "py310"
+line-length = 120
+
+# Legacy 0.5.x helper scripts and the internal provisioning tool are kept for compatibility
+# and are not part of the package build. They are excluded rather than rewritten.
+exclude = ["src", "provision.py", "zettabrain_rag/scripts/0*.py"]
+
+[lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501", "E701", "E702", "F541"]
+
+[lint.isort]
+known-first-party = ["zettabrain_rag"]

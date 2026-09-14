@@ -1,8 +1,3 @@
-"""
-ZettaBrain RAG — Local private retrieval-augmented generation.
-100% on-device. Zero data leaves your machine.
-"""
+"""ZettaBrain — Private AI document assistant: local RAG and Skills."""
 
-__version__ = "0.5.31"
-__author__  = "Olajide"
-__email__   = "olajide@zettabrain.io"
+__version__ = "1.0.0"
