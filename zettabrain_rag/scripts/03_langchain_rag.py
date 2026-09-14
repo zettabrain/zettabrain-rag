@@ -317,6 +317,18 @@ def chat(llm, vectorstore):
             detail = str(exc)
             if "not found" in detail.lower() or "404" in detail:
                 available = _installed_chat_models()
+                # Ollama tags are exact: "llama3.1" installs as "llama3.1:latest", which is a
+                # different model name from "llama3.1:8b". Someone who pulled the model can be
+                # told it is missing while looking straight at it in `ollama list`.
+                base = LLM_MODEL.split(":")[0].lower()
+                near = [m for m in available if m.split(":")[0].lower() == base]
+                if near:
+                    print(f"\n  The tag '{LLM_MODEL}' is not installed, but you have: {', '.join(near)}")
+                    print("  Ollama tags are exact — llama3.1:latest and llama3.1:8b are different names.")
+                    print(f"  Use what you have:  ZETTABRAIN_LLM_MODEL={near[0]} zettabrain-chat")
+                    print(f"  Or pull that tag:   ollama pull {LLM_MODEL}")
+                    print()
+                    continue
                 print(f"\n  The model '{LLM_MODEL}' is not installed on {OLLAMA_HOST}.")
                 if available:
                     # Name what is actually here. Telling someone to pull a model they
