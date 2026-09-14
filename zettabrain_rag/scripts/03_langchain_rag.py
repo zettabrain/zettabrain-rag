@@ -11,6 +11,7 @@ Improvements over v1:
 """
 
 import os
+import sys
 import time
 import argparse
 from pathlib import Path
@@ -269,7 +270,20 @@ def chat(llm, vectorstore):
 
         context    = format_context(last_sources)
         t_g0       = time.time()
-        answer     = llm.invoke(prompt.format(context=context, question=query))
+        try:
+            answer = llm.invoke(prompt.format(context=context, question=query))
+        except Exception as exc:
+            # A missing model is the usual cause and the user can fix it in one command.
+            # Ending the session on a traceback helps nobody.
+            detail = str(exc)
+            if "not found" in detail.lower() or "404" in detail:
+                print(f"\n  The model '{LLM_MODEL}' is not installed.")
+                print(f"  Install it with:  ollama pull {LLM_MODEL}")
+                print("  Or choose a smaller one, e.g.:  ollama pull phi4-mini")
+                print(f"  then:  ZETTABRAIN_LLM_MODEL=phi4-mini {sys.argv[0].split('/')[-1]}\n")
+            else:
+                print(f"\n  Could not get an answer from Ollama: {detail[:300]}\n")
+            continue
         t_generate = time.time() - t_g0
 
         timing_log.append((t_retrieve, t_generate))

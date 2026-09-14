@@ -12,10 +12,17 @@ import os
 import shutil
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 
 from . import __version__
 from .config import CERT_DIR, DEPLOY_DIR, LEGACY_ENV_FILE, migrate_legacy_settings
+
+# LangChain's deprecation notices appear above every command's output and are not
+# actionable for the person running it. Suppressed here and in the subprocesses the
+# commands spawn.
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain.*")
+os.environ.setdefault("PYTHONWARNINGS", "ignore::DeprecationWarning")
 
 PKG_DIR     = Path(__file__).parent
 SCRIPTS_DIR = PKG_DIR / "scripts"
@@ -165,8 +172,15 @@ Commands:
   sudo zettabrain-setup    Storage wizard (Local/NFS/SMB) + TLS cert + vector store
   zettabrain-ingest        Ingest documents into the vector store
   zettabrain-chat          Start interactive RAG chat (CLI)
-  zettabrain-server        Launch secure HTTPS web GUI
+  zettabrain-server        Launch the web interface (RAG chat + Skills)
   zettabrain-status        Show install info and vector store statistics
+  sudo zettabrain-storage  Add or change a storage mount (Local/NFS/SMB)
+  sudo zettabrain-cert     Issue or renew a TLS certificate
+
+First run:
+  sudo zettabrain-setup                       configure storage, models and TLS
+  zettabrain-ingest --folder /path/to/docs    load your documents
+  zettabrain-server                           open http://localhost:7860
         """
     )
     parser.add_argument("--version", action="version",
@@ -211,12 +225,25 @@ def ingest_cmd():
     _require(script)
 
     parser = argparse.ArgumentParser(prog="zettabrain-ingest")
+    parser.add_argument("path", nargs="?", default=None,
+                        help="Folder or file to ingest (same as --folder / --file)")
     parser.add_argument("--folder",  default=None,        help="Documents folder")
     parser.add_argument("--file",    default=None,        help="Single file to ingest")
     parser.add_argument("--clear",   action="store_true", help="Clear vector store")
     parser.add_argument("--stats",   action="store_true", help="Show stats")
     parser.add_argument("--rebuild", action="store_true", help="Force full rebuild")
     args, _ = parser.parse_known_args()
+
+    # Typing the path without a flag is the obvious thing to do, so accept it.
+    if args.path and not args.folder and not args.file:
+        target = Path(args.path)
+        if target.is_dir():
+            args.folder = args.path
+        elif target.is_file():
+            args.file = args.path
+        else:
+            print(f"ERROR: No such file or folder: {args.path}")
+            sys.exit(1)
 
     cmd = [_find_python(), str(script)]
     if args.folder:  cmd += ["--folder", args.folder]
