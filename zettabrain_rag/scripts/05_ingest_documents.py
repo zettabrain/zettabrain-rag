@@ -108,10 +108,28 @@ def _default_docs() -> str:
 
 
 def _default_hash_cache() -> str:
-    if os.name == "nt":
-        local_app = os.environ.get("LOCALAPPDATA", os.path.expanduser("~\\AppData\\Local"))
-        return os.path.join(local_app, "ZettaBrain", "ingested_files.json")
-    return "./ingested_files.json"
+    """Where the record of ingested files lives.
+
+    This used to be "./ingested_files.json" — relative to the working directory. The CLI runs
+    the script from /opt/zettabrain/src and the web server runs it from the data directory, so
+    each kept its own record. Neither saw the other's, which meant documents ingested from the
+    terminal never appeared in the web UI, and ingesting the same file from both paths wrote a
+    second copy of every chunk into the vector store. It is now one absolute path.
+    """
+    try:
+        from zettabrain_rag.config import DATA_DIR  # noqa: PLC0415
+
+        return str(DATA_DIR / "ingested_files.json")
+    except ImportError:
+        return str(Path(CHROMA_PATH).parent / "data" / "ingested_files.json")
+
+
+def _legacy_hash_caches() -> list:
+    """Older locations, read once so an upgrade does not re-ingest everything."""
+    return [
+        Path(CHROMA_PATH).parent / "ingested_files.json",
+        Path.cwd() / "ingested_files.json",
+    ]
 
 
 DOCS_FOLDER = _get("ZETTABRAIN_DOCS", _get("RAG_DATA_PATH", _default_docs()))
@@ -138,12 +156,40 @@ def load_hash_cache() -> dict:
     if os.path.exists(HASH_CACHE):
         with open(HASH_CACHE) as f:
             return json.load(f)
-    return {}
+    # First run after the move: adopt whatever the old locations knew.
+    merged: dict = {}
+    for legacy in _legacy_hash_caches():
+        if legacy.exists():
+            try:
+                merged.update(json.loads(legacy.read_text(encoding="utf-8")))
+            except Exception:
+                pass
+    if merged:
+        save_hash_cache(merged)
+        print(f"  Adopted {len(merged)} previously ingested file(s) from an earlier location.")
+    return merged
 
 
 def save_hash_cache(cache: dict):
+    Path(HASH_CACHE).parent.mkdir(parents=True, exist_ok=True)
     with open(HASH_CACHE, "w") as f:
         json.dump(cache, f, indent=2)
+
+
+def _drop_existing_chunks(vectorstore, filepath: str) -> int:
+    """Remove any chunks already stored for this file.
+
+    Without this, re-ingesting a file adds a second copy of every chunk rather than
+    replacing it: an edited document keeps its stale text, and --rebuild doubles the store.
+    """
+    try:
+        existing = vectorstore._collection.get(where={"source": filepath}, include=[])
+        ids = existing.get("ids") or []
+        if ids:
+            vectorstore._collection.delete(ids=ids)
+        return len(ids)
+    except Exception:
+        return 0
 
 
 def log_ingest_error(filepath: str, reason: str):
@@ -611,6 +657,8 @@ def ingest_file(filepath: str, vectorstore, hash_cache: dict, profile: dict | No
         chunk.metadata["filename"] = Path(filepath).name
         chunk.metadata["storage_type"] = storage_type
 
+    replaced = _drop_existing_chunks(vectorstore, filepath)
+
     # Embed in small batches with retry so one Ollama hiccup doesn't abort the file
     added = 0
     for i in range(0, len(chunks), BATCH_SIZE):
@@ -633,7 +681,8 @@ def ingest_file(filepath: str, vectorstore, hash_cache: dict, profile: dict | No
         return False
 
     hash_cache[filepath] = file_hash
-    print(f"  [OK]   {Path(filepath).name} ({added}/{len(chunks)} chunks)")
+    note = f", replaced {replaced}" if replaced else ""
+    print(f"  [OK]   {Path(filepath).name} ({added}/{len(chunks)} chunks{note})")
 
     # Price list ingestion — runs for XLSX/CSV always, PDF only if filename matches
     ext = Path(filepath).suffix.lower()
@@ -714,7 +763,14 @@ def main():
     if args.rebuild:
         hash_cache = {}
         save_hash_cache(hash_cache)
-        print("Rebuild mode: hash cache cleared, all files will be re-ingested.")
+        try:
+            before = vectorstore._collection.count()
+            ids = vectorstore._collection.get(include=[]).get("ids") or []
+            if ids:
+                vectorstore._collection.delete(ids=ids)
+            print(f"Rebuild mode: cleared {before} existing chunk(s); all files will be re-ingested.")
+        except Exception as e:
+            print(f"Rebuild mode: could not clear the store ({e}); re-ingesting may duplicate chunks.")
     ingested = 0
 
     if args.file:

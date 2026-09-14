@@ -84,8 +84,9 @@ DEBUG         = False
 def load_documents(docs_folder: str):
     folder = Path(docs_folder)
     if not folder.exists():
-        print(f"ERROR: Folder not found: {docs_folder}")
-        print("Check NFS mount: ls /mnt/Rag-data")
+        # Not an error on its own: the existing vector store is loaded next, and a corpus
+        # ingested from anywhere else is perfectly usable. Only the rebuild path needs it.
+        print(f"  No document folder at {docs_folder} — using the existing vector store.")
         return []
 
     loaders = []
