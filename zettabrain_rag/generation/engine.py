@@ -30,9 +30,9 @@ _BUSINESS_LABELS = {
 # and costs context a small local model does not have.
 _FORMAT_CORPUS_CHARS = 2000
 
-# Above roughly this size a prompt will not fit a 2048-token window, and Ollama truncates
-# silently from the front rather than failing.
-_SMALL_CONTEXT_TOKENS = 1900
+# Ollama's default window is 4096 and drops to around 2048 only when memory is tight, so
+# warn near that larger figure. Warning on every ordinary request trains people to ignore it.
+_SMALL_CONTEXT_TOKENS = 3400
 
 
 def _warn_if_prompt_is_large(prompt: str, warnings: List[str]) -> None:
@@ -42,10 +42,10 @@ def _warn_if_prompt_is_large(prompt: str, warnings: List[str]) -> None:
     if tokens > _SMALL_CONTEXT_TOKENS:
         logger.info("Format prompt is roughly %d tokens", tokens)
         warnings.append(
-            f"This request needed about {tokens:,} tokens of instructions. Models with a small "
-            "context window will silently drop part of it, which can lose sections of the "
-            "document. If the result looks incomplete, shorten the skill's instructions or use "
-            "a model with a larger context."
+            f"These instructions are long (about {tokens:,} tokens). On a machine short of "
+            "memory the model's context can shrink below that, and the start of the "
+            "instructions is dropped without an error. If a section is missing from the "
+            "document, shorten the skill or use a model with a larger context."
         )
 
 

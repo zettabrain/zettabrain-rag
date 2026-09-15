@@ -236,3 +236,58 @@ class TestLineTotalLabelling:
         ))
         assert "net_total" not in summary
         assert "₦1,260,000.00" in summary
+
+
+class TestDiscountsAreVisible:
+    """A discount the customer asked for must appear in the document, not just in the total.
+
+    A real quote applied a 12% corporate rate correctly but showed only the bulk discount,
+    leaving an unexplained 185,820 gap between the stated discounts and the rows listed.
+    """
+
+    def _summary(self):
+        items = _items()
+        for li in items:
+            li.discount_percent = Decimal("12")
+            li.discount_reason = "Corporate account discount"
+        data = ExtractedData(
+            line_items=items, currency="NGN",
+            order_discounts=[OrderDiscount(description="Bulk order discount",
+                                           rate_percent=Decimal("10"),
+                                           threshold=Decimal("500000"))],
+        )
+        return build_computed_summary(compute_totals(data))
+
+    def test_line_discounts_are_totalled_for_display(self):
+        summary = self._summary()
+        assert "LINE_DISCOUNTS" in summary
+        assert "Corporate account discount" in summary
+
+    def test_line_discount_total_is_the_sum_of_the_lines(self):
+        # 1,260,000 + 280,000 = 1,540,000 at 12% = 184,800
+        assert "₦184,800.00" in self._summary()
+
+    def test_order_discounts_still_listed_separately(self):
+        summary = self._summary()
+        assert "ORDER_DISCOUNTS" in summary
+        assert "Bulk order discount" in summary
+
+    def test_absent_when_no_line_discount_applies(self):
+        summary = build_computed_summary(compute_totals(
+            ExtractedData(line_items=_items(), currency="NGN")
+        ))
+        assert "LINE_DISCOUNTS" not in summary
+
+    def test_rows_reconcile_with_the_discounts_total(self):
+        """What the reader can add up must equal what the totals claim."""
+        items = _items()
+        for li in items:
+            li.discount_percent = Decimal("12")
+            li.discount_reason = "Corporate account discount"
+        result = compute_totals(ExtractedData(
+            line_items=items, currency="NGN",
+            order_discounts=[OrderDiscount(description="Bulk", rate_percent=Decimal("10"),
+                                           threshold=Decimal("500000"))]))
+        line_total = sum(Decimal(d["discount_amount"]) for d in result.line_details)
+        order_total = sum(Decimal(d["amount"]) for d in result.order_discount_details)
+        assert line_total + order_total == result.total_discounts

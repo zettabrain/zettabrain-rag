@@ -217,8 +217,11 @@ instructions describe.
    [NEEDS INPUT] in place of the amount. Never estimate it, and never carry a figure over from the corpus.
 7. Do NOT introduce a total, subtotal, or discount that is not shown in COMPUTED FIGURES.
 8. Never state or imply that a discount, rate or adjustment was applied unless it appears in ORDER_DISCOUNTS
-   or as a line item discount. If the customer asked for a rate that is not there, say plainly that it has
-   not been applied. Never write "corporate rate applied" when no discount appears in the figures.
+   or LINE_DISCOUNTS. If the customer asked for a rate that is not there, say plainly that it has not been
+   applied. Never write "corporate rate applied" when no discount appears in the figures.
+8a. Every discount in LINE_DISCOUNTS and ORDER_DISCOUNTS must be visible to the reader as its own row.
+    A customer who asked for a rate must be able to see it in the document, not infer it from the gap
+    between the subtotal and the total. The discount rows must add up to the discounts total you state.
 9. Write the document once. Do not repeat a section, restate the totals in a second block, or append a
    summary of the values you were given.
 10. Do not include a workings or calculation-summary section. The reader wants the figures, not the steps.
@@ -546,6 +549,22 @@ def build_computed_summary(computed: ComputedResult) -> str:
             lines.append(
                 f"  item_{i}.net_total   = {money(ld['net_total'], cur)}  (after this line's discount)"
             )
+
+    # Discounts applied to every line, totalled by reason. Without this the per-line figures
+    # are the only record of them, and a model that renders the line table without a discount
+    # column drops them from the document while the totals still count them — leaving the
+    # customer an unexplained gap, and the rate they asked for nowhere in sight.
+    line_discount_totals: dict[str, Decimal] = {}
+    for ld in computed.line_details:
+        amount = Decimal(ld["discount_amount"])
+        if amount > 0:
+            reason = ld.get("discount_reason") or "Discount"
+            line_discount_totals[reason] = line_discount_totals.get(reason, Decimal("0")) + amount
+    if line_discount_totals:
+        lines.append("")
+        lines.append("LINE_DISCOUNTS  (already deducted above — show each as its own row in the totals)")
+        for i, (reason, amount) in enumerate(line_discount_totals.items(), 1):
+            lines.append(f"  discount_{i} = {reason} | -{money(amount, cur)}")
 
     if computed.order_discount_details:
         lines.append("")
