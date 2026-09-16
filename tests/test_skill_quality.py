@@ -1,6 +1,7 @@
 """Unit tests for the skill quality gate and corpus grounding measurement."""
 
 import frontmatter
+import pytest
 
 from zettabrain_rag.skill_drafter import (
     _KNOWLEDGE_LINE,
@@ -289,3 +290,37 @@ class TestRequiredFrontmatterFields:
     def test_complete_frontmatter_raises_no_field_error(self):
         report = validate_skill(GROUNDED_SKILL, CORPUS_RULES)
         assert not any("frontmatter" in e.lower() for e in report.errors)
+
+
+class TestAbstentionDetection:
+    """A skill that says what to do when there is nothing to work from must be recognised.
+
+    A generated skill was marked as having no abstention rule while carrying
+    "Do not generate a quote if the price list is not accessible or contains no relevant
+    data" — the exact rule the check exists to find.
+    """
+
+    @pytest.mark.parametrize("text", [
+        "Do not generate a quote if the price list document is not accessible or contains no relevant data.",
+        "If the corpus contains no documents relevant to the request, output [INSUFFICIENT DATA].",
+        "Abstain when retrieval returns nothing.",
+        "Never generate output when the price list is unavailable.",
+        "If no relevant documents are found, say so.",
+        "Where retrieval returns no results, state that you cannot answer.",
+    ])
+    def test_recognised(self, text):
+        from zettabrain_rag.skill_drafter import has_abstention_rule
+
+        assert has_abstention_rule(text)
+
+    @pytest.mark.parametrize("text", [
+        "Never invent a price for a product.",
+        "Do not include confidential information.",
+        "Always use the exact figures from the rate card.",
+        "Present each line item with its quantity and unit rate.",
+    ])
+    def test_plain_prohibitions_do_not_count(self, text):
+        """Otherwise every skill would pass the check by accident."""
+        from zettabrain_rag.skill_drafter import has_abstention_rule
+
+        assert not has_abstention_rule(text)

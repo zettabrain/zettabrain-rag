@@ -1824,7 +1824,14 @@ function showWizQuality(data) {
   if (!usedCorpus) {
     html += `<div>&mdash; Your documents: not used (corpus grounding is off for this skill)</div>`;
   } else if (available === 0) {
-    html += `<div>&#9888; Your documents: <strong>no rules found</strong> &mdash; this skill contains no
+    // A pricing skill still gets its figures from the price list, so "no better than a plain
+    // prompt" is wrong for it — what it is missing is the written terms, not the numbers.
+    const priced = !!(data.pricing_config && data.pricing_config.tax_rate);
+    html += priced
+      ? `<div>&#9888; Your documents: <strong>no rules found</strong> &mdash; prices and tax will
+             still come from your price list, but terms such as deposits, notice periods and
+             cancellation rules are missing from this skill.</div>`
+      : `<div>&#9888; Your documents: <strong>no rules found</strong> &mdash; this skill contains no
              information from your files, so it will not outperform a plain prompt.</div>`;
   } else {
     html += `<div>${grounded > 0 ? '&check;' : '&#9888;'} Your documents:
@@ -1849,8 +1856,9 @@ function showWizQuality(data) {
   }
 
   if (available === 0 && usedCorpus) {
-    html += `<div class="issues">&bull; Upload the documents holding your rates, thresholds and
-             policies, re-ingest them, then generate this skill again.</div>`;
+    html += `<div class="issues">&bull; Upload the documents holding your terms and policies
+             &mdash; deposit rules, notice periods, cancellation terms &mdash; re-ingest them,
+             then generate this skill again.</div>`;
   }
 
   html += renderCategoryPicker(data);

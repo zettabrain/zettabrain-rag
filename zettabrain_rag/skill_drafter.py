@@ -83,19 +83,40 @@ _FILLER_PATTERNS = [
     re.compile(r"tailor (?:the )?(?:content|output|response) to", re.IGNORECASE),
 ]
 
-_ABSTENTION_PATTERNS = re.compile(
-    r"("
-    r"(?:if|when|where)\s+(?:no|insufficient|limited|zero|empty)\s+(?:retrieval|context|corpus|documents?|chunks?|results?)"
-    r"|(?:retrieval|context|corpus|search)\s+(?:returns?|yields?|provides?|contains?)\s+(?:nothing|no |empty|zero)"
-    r"|(?:cannot|can'?t|unable to)\s+(?:find|retrieve|locate)"
-    r"|(?:no (?:relevant )?(?:documents?|sources?|context|information|data) (?:found|available|returned|retrieved))"
-    r"|(?:abstain|decline|refuse|state that)\b"
-    r"|(?:say |respond |reply |indicate ).*(?:not enough|insufficient|no data|cannot answer)"
-    r"|\[INSUFFICIENT"
-    r"|INSUFFICIENT[ _]DATA"
-    r")",
+# An abstention rule is a refusal paired with a condition of nothing being available. Written
+# as one pattern this was far too narrow: it missed "Do not generate a quote if the price list
+# is not accessible", which is exactly the rule the check exists to find. Matching the two
+# halves within a single sentence catches the ways people actually phrase it.
+_ABSTENTION_REFUSAL = re.compile(
+    r"\b(?:abstain|decline|refuse|stop|cannot answer|can'?t answer|say so|state that|"
+    r"report that|do not generate|don'?t generate|never generate|do not produce|never produce|"
+    r"do not write|never write|do not create|never create|do not proceed|INSUFFICIENT)\b",
     re.IGNORECASE,
 )
+
+_ABSTENTION_SUBJECT = (
+    r"documents?|sources?|corpus|context|retrieval|results?|records?|information|data|"
+    r"chunks?|price list|rate card|files?"
+)
+
+_ABSTENTION_ABSENCE = re.compile(
+    rf"\b(?:no|not|nothing|none|without|zero|empty|insufficient|missing|unavailable|"
+    rf"inaccessible)\b[^.]{{0,80}}?\b(?:{_ABSTENTION_SUBJECT})\b"
+    rf"|\b(?:{_ABSTENTION_SUBJECT})\b[^.]{{0,80}}?\b(?:not (?:accessible|available|found|"
+    rf"present)|unavailable|inaccessible|missing|empty|returns? nothing|contains? no)\b",
+    re.IGNORECASE,
+)
+
+
+def has_abstention_rule(content: str) -> bool:
+    """True when the skill says what to do if there is nothing to work from."""
+    if re.search(r"\[?INSUFFICIENT[ _]?DATA", content, re.IGNORECASE):
+        return True
+    for sentence in re.split(r"(?<=[.!?])\s+|\n", content):
+        if _ABSTENTION_REFUSAL.search(sentence) and _ABSTENTION_ABSENCE.search(sentence):
+            return True
+    return False
+
 
 
 def _parse_frontmatter(content: str) -> dict:
@@ -241,7 +262,7 @@ def validate_skill(content: str, rules: list[dict] | None = None) -> QualityRepo
         errors.append("No prohibitions found (need at least one 'never', 'must not', 'do not', or 'prohibited')")
 
     requires_corpus = meta.get("requires_corpus", False)
-    if requires_corpus and not _ABSTENTION_PATTERNS.search(content):
+    if requires_corpus and not has_abstention_rule(content):
         errors.append("requires_corpus is true but no abstention rule for when retrieval returns nothing")
 
     missing_sections = [s for s in _REQUIRED_SECTIONS if s not in headings]
