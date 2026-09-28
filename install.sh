@@ -339,7 +339,7 @@ if pipx list 2>/dev/null | grep -q "zettabrain-rag"; then
   info "Upgrading zettabrain-rag (downloading latest + dependencies)..."
   echo "  (This can take 2-5 minutes on first upgrade — please wait)"
   echo ""
-  pipx upgrade --pip-args='--no-cache-dir' zettabrain-rag 2>&1 | sed 's/^/  /'
+  pipx reinstall --pip-args='--no-cache-dir' zettabrain-rag 2>&1 | sed 's/^/  /'
 else
   info "Installing zettabrain-rag (downloading package + dependencies)..."
   echo "  (This can take 3-6 minutes — please wait)"
